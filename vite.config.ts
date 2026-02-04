@@ -32,9 +32,9 @@ export default defineConfig({
         commonjs(),
         tailwindcss(),
     ],
-    // legacy: {
-    //     inconsistentCjsInterop: true,
-    // },
+    legacy: {
+        inconsistentCjsInterop: false,
+    },
     // base: './',
     base: './',
     server: {
