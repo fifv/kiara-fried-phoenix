@@ -14,7 +14,7 @@ export default function App() {
             } }>Mount: { isMount ? "ON" : "OFF" }</button>
             <button onClick={ () => {
                 setIsActive((x) => (!x))
-            } }>Activity: { isMount ? "ON" : "OFF" }</button>
+            } }>Activity: { isActive ? "ON" : "OFF" }</button>
             {
                 isMount &&
                 <Activity mode={ isActive ? "visible" : "hidden" } >
@@ -33,8 +33,18 @@ function T() {
     console.log("RENDER!!!!!!!!", 'refHackKey', refHackKey.current, 'hackKey', hackKey)
 
     /**
-     * do clean up, otherwise worker leak
+     * We must terminate worker, otherwise worker will be leaked
      * 
+     * The lifetime of the component is longer than the [] effect,
+     * (i.e. Worker may be terminated & recreated multiple times, while canvas be mounted)
+     * 1. HMR will cleanup => redo
+     * 2. Activity.hidden will cleanup Activity.visible will redo
+     * 
+     * Current Solution:
+     * Don't be eager to reset canvas (with a different key) and send to worker when new worker created,
+     * which maybe impossible (the flushSync doesn't work in effect).
+     * instead, setState a new key to trigger a re-render later,
+     * use another effect (with no dep array) to monitor the change of new canvas ref
      */
     useEffect(() => {
         console.log("[] New Worker")
@@ -43,6 +53,9 @@ function T() {
 
         return () => {
             console.log("[] Terminate Worker")
+            /**
+             * this will trigger re-render if the component is still mounted
+             */
             setHackKey((x) => x + 1)
             const worker = refWorker.current
             if (worker) {
@@ -51,24 +64,41 @@ function T() {
         }
     }, [])
 
+    /**
+     * Must put after the woker creation effect, so the `refWorker.current`
+     * should be always available
+     */
     useEffect(() => {
         const worker = refWorker.current
         const currentCanvas = refCanvas.current
         // const prevCanvas = refCanvasPrev.current
-        if (worker) {
-            try {
-                if (currentCanvas && currentCanvas !== refCanvasPrev.current) {
-                    const offScreen = currentCanvas.transferControlToOffscreen()
-                    worker.postMessage({
-                        offScreen: offScreen
-                    }, [offScreen])
-                    console.log('transfered!')
-                    refCanvasPrev.current = currentCanvas
-                }
-            } catch (error) {
-                console.log('failed to transfer!', error)
-                setHackKey((x) => x + 1)
+        /**
+         * refWorker.current and refCanvas.current should always be available
+         */
+        if (worker && currentCanvas) {
+            // try {
+            /**
+             * refCanvasPrev.current stores transferred canvas,
+             * so if `refCanvas.current` !== `refCanvasPrev.current`, 
+             * the `refCanvas.current` must be not transferred yet
+             * 
+             * so no trycatch needed
+             */
+            if (currentCanvas !== refCanvasPrev.current) {
+                console.log('canvas changed! current  canvas key:', hackKey)
+                const offScreen = currentCanvas.transferControlToOffscreen()
+                worker.postMessage({
+                    offScreen: offScreen
+                }, [offScreen])
+                refCanvasPrev.current = currentCanvas
+                console.log('transfered!')
             }
+            // } catch (error) {
+            //     console.log('failed to transfer!', error)
+            //     setHackKey((x) => x + 1)
+            // }
+        } else {
+            console.error("No Worker or refCanvas.current?! This shouldn't happen!", refWorker.current, refCanvas.current)
         }
     },)
 
