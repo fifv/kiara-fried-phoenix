@@ -25,31 +25,53 @@ export default function App() {
     )
 }
 function T() {
-    console.log("RENDER!!!!!!!!")
     const refWorker = useRef<Worker>(null)
     const refCanvas = useRef<HTMLCanvasElement>(null)
+    const refCanvasPrev = useRef<HTMLCanvasElement>(null)
     const refHackKey = useRef(0)
     const [hackKey, setHackKey] = useState(0)
+    console.log("RENDER!!!!!!!!", 'refHackKey', refHackKey.current, 'hackKey', hackKey)
+
+    /**
+     * do clean up, otherwise worker leak
+     * 
+     */
     useEffect(() => {
-        console.log("EFFECT!!!!");
+        console.log("[] New Worker")
         const worker = new Worker(new URL('./try37-worker-canvas-lifetime.worker.tsx', import.meta.url))
         refWorker.current = worker
-        if (refCanvas.current) {
-            const offScreen = refCanvas.current.transferControlToOffscreen()
 
-            worker.postMessage({
-                offScreen: offScreen
-            }, [offScreen])
-        }
         return () => {
-            console.log("CLEAN UP!!!");
-            refHackKey.current++
-            flushSync(() => {
-                setHackKey((x) => x + 1)
-            })
-            worker.terminate()
+            console.log("[] Terminate Worker")
+            setHackKey((x) => x + 1)
+            const worker = refWorker.current
+            if (worker) {
+                worker.terminate()
+            }
         }
     }, [])
+
+    useEffect(() => {
+        const worker = refWorker.current
+        const currentCanvas = refCanvas.current
+        // const prevCanvas = refCanvasPrev.current
+        if (worker) {
+            try {
+                if (currentCanvas && currentCanvas !== refCanvasPrev.current) {
+                    const offScreen = currentCanvas.transferControlToOffscreen()
+                    worker.postMessage({
+                        offScreen: offScreen
+                    }, [offScreen])
+                    console.log('transfered!')
+                    refCanvasPrev.current = currentCanvas
+                }
+            } catch (error) {
+                console.log('failed to transfer!', error)
+                setHackKey((x) => x + 1)
+            }
+        }
+    },)
+
     // const [count, setCount] = useState(0)
     return (
         <div>
@@ -58,7 +80,7 @@ function T() {
 
             <canvas
                 // key={ refHackKey.current }
-                // key={ hackKey }
+                key={ hackKey }
                 className={ clsx(
                     'outline outline-red-300',
                 ) } ref={ refCanvas } />
