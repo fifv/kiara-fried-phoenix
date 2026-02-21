@@ -1,7 +1,5 @@
 import clsx from "clsx"
 import { Activity, useEffect, useRef, useState } from "react"
-import { flushSync } from "react-dom"
-
 
 export default function App() {
     const [isMount, setIsMount] = useState(true)
@@ -12,19 +10,21 @@ export default function App() {
             <button onClick={ () => {
                 setIsMount((x) => (!x))
             } }>Mount: { isMount ? "ON" : "OFF" }</button>
+
             <button onClick={ () => {
                 setIsActive((x) => (!x))
             } }>Activity: { isActive ? "ON" : "OFF" }</button>
+
             {
                 isMount &&
                 <Activity mode={ isActive ? "visible" : "hidden" } >
-                    <T />
+                    <WorkerAndCanvas />
                 </Activity>
             }
         </div>
     )
 }
-function T() {
+function WorkerAndCanvas() {
     const refWorker = useRef<Worker>(null)
     const refCanvas = useRef<HTMLCanvasElement>(null)
     const refCanvasPrev = useRef<HTMLCanvasElement>(null)
@@ -40,11 +40,19 @@ function T() {
      * 1. HMR will cleanup => redo
      * 2. Activity.hidden will cleanup Activity.visible will redo
      * 
-     * Current Solution:
+     * ## Current Solution:
      * Don't be eager to reset canvas (with a different key) and send to worker when new worker created,
      * which maybe impossible (the flushSync doesn't work in effect).
      * instead, setState a new key to trigger a re-render later,
-     * use another effect (with no dep array) to monitor the change of new canvas ref
+     * use another effect (with no dep array) to monitor the change of new canvas ref.
+     * 
+     * The core logic is create a new canvas when worker is re-created,
+     * luckily, setHackKey() in effect cleanup works well, and be patient to use a refCanvasPrev to track
+     * and wait for canvas element actually change.
+     * Don't put `refCanvas.current` in effect dep array, which is checked during render,
+     * but the value may change after render finished and committed
+     * (render means the body of component function, commit means react-dom actually changes DOM)
+     * 
      */
     useEffect(() => {
         console.log("[] New Worker")
