@@ -69,6 +69,7 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['-34- even-flex', lazyWithPreload(() => import('./try34-even-flex.tsx')),],
     ['-35- activitywatch', lazyWithPreload(() => import('./try35-activitywatch.tsx')),],
     ['-36- webrtc', lazyWithPreload(() => import('./try36-webrtc.tsx')),],
+    ['-37- worker-canvas-lifetime', lazyWithPreload(() => import('./try37-worker-canvas-lifetime.tsx')),],
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
