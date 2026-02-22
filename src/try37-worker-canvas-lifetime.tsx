@@ -116,7 +116,10 @@ function WorkerAndCanvas() {
         } else {
             console.error("No Worker or refCanvas.current?! This shouldn't happen!", refWorker.current, refCanvas.current)
         }
-    },)
+        /**
+         * use canvasKey as dep is okay
+         */
+    }, [canvasKey])
 
     // const [count, setCount] = useState(0)
     return (
