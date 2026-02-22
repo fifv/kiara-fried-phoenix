@@ -28,9 +28,9 @@ function WorkerAndCanvas() {
     const refWorker = useRef<Worker>(null)
     const refCanvas = useRef<HTMLCanvasElement>(null)
     const refCanvasPrev = useRef<HTMLCanvasElement>(null)
-    const refHackKey = useRef(0)
-    const [hackKey, setHackKey] = useState(0)
-    console.log("RENDER!!!!!!!!", 'refHackKey', refHackKey.current, 'hackKey', hackKey)
+    // const refCanvasKey = useRef(0)
+    const [canvasKey, setCanvasKey] = useState(0)
+    console.log("⭕Render>>", 'canvasKey:', canvasKey)
 
     /**
      * We must terminate worker, otherwise worker will be leaked
@@ -47,7 +47,7 @@ function WorkerAndCanvas() {
      * use another effect (with no dep array) to monitor the change of new canvas ref.
      * 
      * The core logic is create a new canvas when worker is re-created,
-     * luckily, setHackKey() in effect cleanup works well, and be patient to use a refCanvasPrev to track
+     * luckily, setCanvasKey() in effect cleanup works well, and be patient to use a refCanvasPrev to track
      * and wait for canvas element actually change.
      * Don't put `refCanvas.current` in effect dep array, which is checked during render,
      * but the value may change after render finished and committed
@@ -72,7 +72,7 @@ function WorkerAndCanvas() {
             /**
              * this will trigger re-render if the component is still mounted
              */
-            setHackKey((x) => x + 1)
+            setCanvasKey((x) => x + 1)
             const worker = refWorker.current
             if (worker) {
                 worker.terminate()
@@ -101,7 +101,7 @@ function WorkerAndCanvas() {
              * so no trycatch needed
              */
             if (currentCanvas !== refCanvasPrev.current) {
-                console.log('canvas changed! current  canvas key:', hackKey)
+                console.log('canvas changed! current canvasKey:', canvasKey)
                 const offScreen = currentCanvas.transferControlToOffscreen()
                 worker.postMessage({
                     offScreen: offScreen
@@ -111,7 +111,7 @@ function WorkerAndCanvas() {
             }
             // } catch (error) {
             //     console.log('failed to transfer!', error)
-            //     setHackKey((x) => x + 1)
+            //     setCanvasKey((x) => x + 1)
             // }
         } else {
             console.error("No Worker or refCanvas.current?! This shouldn't happen!", refWorker.current, refCanvas.current)
@@ -125,8 +125,8 @@ function WorkerAndCanvas() {
 
 
             <canvas
-                // key={ refHackKey.current }
-                key={ hackKey }
+                // key={ refCanvasKey.current }
+                key={ canvasKey }
                 className={ clsx(
                     'outline outline-red-300',
                 ) } ref={ refCanvas } />
