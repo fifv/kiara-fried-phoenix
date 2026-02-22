@@ -53,6 +53,14 @@ function WorkerAndCanvas() {
      * but the value may change after render finished and committed
      * (render means the body of component function, commit means react-dom actually changes DOM)
      * 
+     * 
+     * Though the canvas re-creation only happens when new worker created, I have tested that 
+     * put transfer directly after new worker works on Activity On/Off, but crashes on HMR
+     * Maybe that: when HMR triggered, the setState run, schedule a new re-render,
+     * but HMR also trigger a re-render, and that runs before the setState re-render,
+     * so in the effect where new worker created, the canvas element is still old one.
+     * After that re-render finished, a new re-render with new canvas kicks in
+     * 
      */
     useEffect(() => {
         console.log("[] New Worker")
