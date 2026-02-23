@@ -9,11 +9,17 @@ interface Message {
 function createWorker<T extends Function>(fn: T) {
     return new Worker(URL.createObjectURL(new Blob(['(', fn.toString(), ')()'], { type: 'application/javascript' })))
 }
+
 /**
  * Benchmark:
- * 100_000 postMessage() cost 135ms on 9700x (i.e. ~1us per postMessage())
+ * 100_000 postMessage() cost   135ms on 9700x@Chrome (i.e. ~1us per postMessage())
+ *                              210ms on 5600@Chrome
+ *                              330ms on 5600@Firefox
+ *                              150ms on K80Pro@Chrome
+ *                              1820ms on MIPAD4@Chrome (in which postMessage cost 730ms) (i.e. 20us)
  */
 const worker = createWorker(async () => {
+    const BENCH_COUNT = 100_000
     let ccc = 0
     let ttt = 0
 
@@ -31,7 +37,7 @@ const worker = createWorker(async () => {
                 if (ccc === 1) {
                     ttt = msg.data.data
                 }
-                if (ccc === 100_000) {
+                if (ccc === BENCH_COUNT) {
                     ccc = 0
                     self.postMessage({
                         event: "benchmark",
@@ -44,8 +50,10 @@ const worker = createWorker(async () => {
 })
 
 export default function App() {
+    const BENCH_COUNT = 100_000
     const [count, setCount] = useState(0)
     const [benchResult, setBenchResult] = useState(0)
+    const [postAllElapsed, setPostAllElapsed] = useState(0)
     useEffect(() => {
         worker.onmessage = (msg) => {
             console.log('main receive:', msg)
@@ -70,14 +78,21 @@ export default function App() {
                 } satisfies Message)
             } }>fa { count }</button>
 
-            <button onClick={ () => {
-                for (let i = 0; i < 100000; i++) {
-                    worker.postMessage({
-                        event: "benchmark",
-                        data: Date.now(),
-                    } satisfies Message)
-                }
-            } }>Bench { benchResult }</button>
+            <div>
+                <button onClick={ () => {
+                    const t1 = performance.now()
+                    for (let i = 0; i < BENCH_COUNT*1; i++) {
+                        worker.postMessage({
+                            event: "benchmark",
+                            data: Date.now(),
+                        } satisfies Message)
+                    }
+                    setPostAllElapsed(performance.now() - t1)
+                } }>Bench: post { BENCH_COUNT } messages and wait all be processed cost { benchResult } ms</button>
+            </div>
+            <div>
+                Post All { BENCH_COUNT } messages cost { postAllElapsed.toFixed(2) } ms
+            </div>
         </div>
     )
 }
