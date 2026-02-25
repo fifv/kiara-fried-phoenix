@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { type LazyExoticComponent, type ReactNode, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, Suspense, lazy, useLayoutEffect, useRef } from 'react'
 import { lazyWithPreload, type PreloadableComponent } from "react-lazy-with-preload"
 import { useLocalStorage } from 'usehooks-ts'
 import { ErrorBoundary, type FallbackProps, } from "react-error-boundary"
@@ -66,6 +66,10 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['-31- worker-inline', lazyWithPreload(() => import('./try31-worker-inline.tsx')),],
     ['-32- floating-ui', lazyWithPreload(() => import('./try32-floatingui.tsx')),],
     ['-33- mantine', lazyWithPreload(() => import('./try33-mantine.tsx')),],
+    ['-34- even-flex', lazyWithPreload(() => import('./try34-even-flex.tsx')),],
+    ['-35- activitywatch', lazyWithPreload(() => import('./try35-activitywatch.tsx')),],
+    ['-36- webrtc', lazyWithPreload(() => import('./try36-webrtc.tsx')),],
+    ['-37- worker-canvas-lifetime', lazyWithPreload(() => import('./try37-worker-canvas-lifetime.tsx')),],
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
@@ -118,7 +122,7 @@ export default function App() {
             className={ clsx(
                 '',
                 /* if no top-0, fixed elements' position will be unexpected */
-                'z-[99999] fixed top-1 right-1 h-8 w-8 flex justify-center items-center',
+                'z-99999 fixed top-1 right-1 h-8 w-8 flex justify-center items-center',
                 'rounded',
                 'hover:bg-white/10 active:bg-white/5',
                 'select-none font-bold font-mono'
@@ -127,7 +131,7 @@ export default function App() {
         { isShowPanel &&
             <div className={ clsx(
                 'navigationPanel',
-                'z-[99999] mr-1 p-1  fixed right-0 top-10 max-h-[calc(100vh_-_52px)] overflow-y-auto',
+                'z-99999 mr-1 p-1  fixed right-0 top-10 max-h-[calc(100vh-52px)] overflow-y-auto',
                 'outline outline-white/30 bg-black/30 rounded',
                 'select-none font-bold font-mono',
             ) } ref={ refNavigationPanel }>

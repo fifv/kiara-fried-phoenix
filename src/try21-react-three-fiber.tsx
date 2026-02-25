@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import React, { Suspense, useEffect, useRef, useState } from 'react'
-import { Canvas, useFrame, type ThreeElements, useThree, extend, type GroupProps, useLoader, type Object3DNode, type MaterialNode, } from '@react-three/fiber'
+import { Canvas, useFrame, type ThreeElements, useThree, extend, useLoader, } from '@react-three/fiber'
 import { Center, FlyControls, OrbitControls, PointerLockControls, Sparkles, Text3D, shaderMaterial, useGLTF, useTexture } from '@react-three/drei'
 import clsx from 'clsx'
 // import glsl from 'glslify'
@@ -30,6 +30,14 @@ function Box(props: ThreeElements['mesh']) {
             <meshStandardMaterial color={ hovered ? 'hotpink' : 'orange' } />
         </mesh>
     )
+}
+function LoadingWrapper(props: ThreeElements['mesh']) {
+    return (
+        <Canvas>
+            <Loading { ...props } />
+        </Canvas>
+    )
+
 }
 function Loading(props: ThreeElements['mesh']) {
     // This reference will give us direct access to the mesh
@@ -124,59 +132,86 @@ export default function App() {
         <div className={ clsx(
             'h-screen w-screen',
         ) }>
-            <Suspense fallback={ <Loading /> }>
-                <Canvas
-                    gl={ {
-                        // useLegacyLights: true,
-                    } }
-                    camera={ {
-                        position: [0, 2, 5],
-                        // rotation:[0,1,1]
-                    } }
-                >
-                    <WASD />
-                    {/* <Loading /> */ }
-                    <ambientLight intensity={ 0.5 * Math.PI } />
-                    {/* <spotLight intensity={100000} position={ [10, 10, 10] } angle={ 0.15 } penumbra={ 1 } color={ 'blue' } /> */ }
-                    <pointLight position={ [-10, 10, 10] } intensity={ 1000 } />
-                    <Box position={ [-1.2, 0, 0] } />
-                    <Box position={ [1.2, 0, 0] } />
-                    {/* <directionalLight color="red" position={[0, 0, 5]} /> */ }
-                    {/* <PointerLockControls></PointerLockControls> */ }
-                    <OrbitControls />
-                    {/* <FlyControls movementSpeed={4}> </FlyControls> */ }
-                    <gridHelper />
-                    <axesHelper />
-                    <TorusKnot></TorusKnot>
-                    <Sparkles count={ scale.length }
-                        size={ scale }
-                        position={ [0, 0.9, 0] }
-                        scale={ [4, 1.5, 4] } speed={ 0.3 }
-                    />
-                    <Suspense fallback={ <Loading rotation={ [0, Math.PI * -0.2, 0] } /> }>
-                        <Center disableY>
-                            <Text3D font={ 'fonts/FZZhunYuan-M02_Regular.json' } position={ [0, 1, 0] }
-                                letterSpacing={ 0.3 }
-                                curveSegments={ 100 } /* Smooth */
-                                bevelEnabled
-                                bevelSize={ 0.1 }
-                                // bevelThickness={ 0.2 }
-                                // bevelOffset={0.01}
-                                bevelSegments={ 30 } /* Smooth */
-                            >
-                                {/* B20030819 */ }
-                                PEKO
-                                <meshNormalMaterial />
-                            </Text3D>
-                        </Center>
-                    </Suspense>
+            {/* <TTT /> */ }
+            <MyApp />
+            {/* <Loading /> */ }
+            {/* <LoadingWrapper /> */ }
 
-                    <Suspense fallback={ <Loading /> }>
-                        <PortalModel />
-                    </Suspense>
-                    {/* <CameraHelper></CameraHelper> */ }
-                </Canvas>
-            </Suspense>
         </div>
+    )
+}
+
+function MyApp() {
+    return (<div className={ clsx(
+        'h-screen w-screen',
+    ) }>
+        <Suspense fallback={ <LoadingWrapper /> }>
+            <Canvas
+                gl={ {
+                    // useLegacyLights: true,
+                } }
+                camera={ {
+                    position: [0, 2, 5],
+                    // rotation:[0,1,1]
+                } }
+            >
+
+                <WASD />
+                {/* <Loading /> */ }
+                <ambientLight intensity={ 0.5 * Math.PI } />
+                {/* <spotLight intensity={100000} position={ [10, 10, 10] } angle={ 0.15 } penumbra={ 1 } color={ 'blue' } /> */ }
+                <pointLight position={ [-10, 10, 10] } intensity={ 1000 } />
+                <Box position={ [-1.2, 0, 0] } />
+                <Box position={ [1.2, 0, 0] } />
+                {/* <directionalLight color="red" position={[0, 0, 5]} /> */ }
+                {/* <PointerLockControls></PointerLockControls> */ }
+                <OrbitControls />
+                {/* <FlyControls movementSpeed={4}> </FlyControls> */ }
+                <gridHelper />
+                <axesHelper />
+                <TorusKnot></TorusKnot>
+                <Sparkles count={ scale.length }
+                    size={ scale }
+                    position={ [0, 0.9, 0] }
+                    scale={ [4, 1.5, 4] } speed={ 0.3 }
+                />
+                <Suspense fallback={ <LoadingWrapper rotation={ [0, Math.PI * -0.2, 0] } /> }>
+                    <Center disableY>
+                        <Text3D font={ 'fonts/FZZhunYuan-M02_Regular.json' } position={ [0, 1, 0] }
+                            letterSpacing={ 0.3 }
+                            curveSegments={ 100 } /* Smooth */
+                            bevelEnabled
+                            bevelSize={ 0.1 }
+                            // bevelThickness={ 0.2 }
+                            // bevelOffset={0.01}
+                            bevelSegments={ 30 } /* Smooth */
+                        >
+                            {/* B20030819 */ }
+                            PEKO
+                            <meshNormalMaterial />
+                        </Text3D>
+                    </Center>
+                </Suspense>
+
+                <Suspense fallback={ <LoadingWrapper /> }>
+                    <PortalModel />
+                </Suspense>
+                {/* <CameraHelper></CameraHelper> */ }
+            </Canvas>
+        </Suspense>
+    </div>)
+}
+
+
+function TTT() {
+    const [count, setCount] = useState(0)
+    return (
+        <Canvas>
+            <ambientLight intensity={ Math.PI / 2 } />
+            <spotLight position={ [10, 10, 10] } angle={ 0.15 } penumbra={ 1 } decay={ 0 } intensity={ Math.PI } />
+            <pointLight position={ [-10, -10, -10] } decay={ 0 } intensity={ Math.PI } />
+            <Box position={ [-1.2, 0, 0] } />
+            <Box position={ [1.2, 0, 0] } />
+        </Canvas>
     )
 }
