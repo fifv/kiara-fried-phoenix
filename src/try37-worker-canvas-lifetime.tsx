@@ -123,7 +123,7 @@ function WorkerAndCanvas() {
 
     // const [count, setCount] = useState(0)
     return (
-        <div>
+        <div className="m-8">
             Canvas!
 
 
