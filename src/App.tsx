@@ -74,6 +74,7 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
+    ['fast-timer', lazyWithPreload(() => import('./tools/fast-timer')),],
     ['Slider', lazyWithPreload(() => import('./components/Slider')),],
     ['vanilla-01-css-absoluteincss', lazyWithPreload(() => import('./try-vanilla/try01-css-absoluteincss')),],
     ['vanilla-02-css-3dtransform', lazyWithPreload(() => import('./try-vanilla/try02-css-3dtransform')),],
