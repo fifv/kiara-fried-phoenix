@@ -13,9 +13,9 @@ import tailwindcss from '@tailwindcss/vite'
 // import glslify from 'vite-plugin-glslify'
 // https://vitejs.dev/config/
 export default defineConfig({
-    experimental: {
-        enableNativePlugin: true,
-    },
+    // experimental: {
+    //     enableNativePlugin: true,
+    // },
     plugins: [
         // react(),
         react({
