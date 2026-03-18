@@ -1,4 +1,4 @@
-import { range } from "lodash-es"
+import { range } from "es-toolkit"
 import React, { memo, useEffect, useRef, useState } from "react"
 export default function App() {
 	const [toggle, setToggle] = useState(false)
