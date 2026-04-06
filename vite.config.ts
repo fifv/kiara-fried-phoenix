@@ -1,24 +1,34 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import jotaiDebugLabel from 'jotai/babel/plugin-debug-label'
-import jotaiReactRefresh from 'jotai/babel/plugin-react-refresh'
-import reactSwc from '@vitejs/plugin-react-swc'
-import reactOxc from '@vitejs/plugin-react-oxc'
+// import jotaiDebugLabel from 'jotai/babel/plugin-debug-label'
+// import jotaiReactRefresh from 'jotai/babel/plugin-react-refresh'
+// import reactSwc from '@vitejs/plugin-react-swc'
+// import reactOxc from '@vitejs/plugin-react-oxc'
+import babel from '@rolldown/plugin-babel'
 // import react from '@vitejs/plugin-react'
 import commonjs from 'vite-plugin-commonjs'
-import million from 'million/compiler'
+// import million from 'million/compiler'
 import tailwindcss from '@tailwindcss/vite'
 
 // import glslify from 'vite-plugin-glslify'
 // https://vitejs.dev/config/
 export default defineConfig({
-    experimental: {
-        enableNativePlugin: true,
-    },
+    // experimental: {
+    //     enableNativePlugin: true,
+    // },
     plugins: [
         // react(),
         react({
-            babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] }
+            // babel: { plugins: [jotaiDebugLabel, jotaiReactRefresh] }
+        }),
+        /* the new jotai v3 with plugin-react v6 usage */
+        babel({
+            // plugins: [
+            //     "jotai-babel/plugin-react-refresh"
+            // ],
+            presets: [
+                "jotai-babel/preset"
+            ],
         }),
         // reactOxc({}),
         // million.vite({ auto: true }), 

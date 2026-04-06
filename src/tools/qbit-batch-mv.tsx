@@ -69,12 +69,13 @@ function Main() {
         queryKey: ['torrents'],
         queryFn: async () => {
             const qbitData = await (await fetch(
-                'https://fifv.fun:55000/qbittorrent/api/v2/sync/maindata',
+                'https://fifv.me:55000/qbittorrent/api/v2/sync/maindata',
                 {
                     method: "GET",
                     // credentials: 'include',
                 }
             )).json()
+            console.log(qbitData)
             const newTorrents = Object.values(qbitData.torrents as Torrent[]).filter((torrent, i) => {
                 return (
                     torrent.save_path.startsWith('/media/BitTorrentDownload')

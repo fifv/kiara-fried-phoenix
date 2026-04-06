@@ -70,9 +70,11 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['-35- activitywatch', lazyWithPreload(() => import('./try35-activitywatch.tsx')),],
     ['-36- webrtc', lazyWithPreload(() => import('./try36-webrtc.tsx')),],
     ['-37- worker-canvas-lifetime', lazyWithPreload(() => import('./try37-worker-canvas-lifetime.tsx')),],
+    ['-38- yuv', lazyWithPreload(() => import('./try38-yuv.tsx')),],
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
+    ['fast-timer', lazyWithPreload(() => import('./tools/fast-timer')),],
     ['Slider', lazyWithPreload(() => import('./components/Slider')),],
     ['vanilla-01-css-absoluteincss', lazyWithPreload(() => import('./try-vanilla/try01-css-absoluteincss')),],
     ['vanilla-02-css-3dtransform', lazyWithPreload(() => import('./try-vanilla/try02-css-3dtransform')),],
@@ -135,7 +137,7 @@ export default function App() {
                 'outline outline-white/30 bg-black/30 rounded',
                 'select-none font-bold font-mono',
             ) } ref={ refNavigationPanel }>
-                { appTitlesAndComponents.map((appTitleAndComponent, i) => <div
+                { appTitlesAndComponents.map((appTitleAndComponent, i, appTitlesAndComponents) => <div
                     key={ i }
                     className={ clsx(
                         'rounded p-1',
@@ -147,6 +149,11 @@ export default function App() {
                     } }
                     onPointerEnter={ (e) => {
                         appTitleAndComponent[1].preload()
+                        /* preload may lazy wait ~500ms, preload more will make a lot more responsive */
+                        appTitlesAndComponents[i + 1]?.[1].preload()
+                        appTitlesAndComponents[i - 1]?.[1].preload()
+                        // appTitlesAndComponents[i + 2]?.[1].preload()
+                        // appTitlesAndComponents[i - 2]?.[1].preload()
                         if (e.buttons === 1) {
                             setCurrentAppIndex(i)
                         }
@@ -179,7 +186,8 @@ export default function App() {
                         Lazy Loading Components...
                     </div>
                 }>
-                    <CurrentApp></CurrentApp>
+                    {/* eslint-disable-next-line react-hooks/static-components */}
+                    <CurrentApp />
                     {/* <TryLazy></TryLazy> */ }
                 </Suspense>
             </ErrorBoundary>
