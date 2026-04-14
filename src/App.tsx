@@ -186,7 +186,7 @@ export default function App() {
                         Lazy Loading Components...
                     </div>
                 }>
-                    {/* eslint-disable-next-line react-hooks/static-components */}
+                    {/* eslint-disable-next-line react-hooks/static-components */ }
                     <CurrentApp />
                     {/* <TryLazy></TryLazy> */ }
                 </Suspense>
