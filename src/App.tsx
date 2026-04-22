@@ -71,6 +71,7 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['-36- webrtc', lazyWithPreload(() => import('./try36-webrtc.tsx')),],
     ['-37- worker-canvas-lifetime', lazyWithPreload(() => import('./try37-worker-canvas-lifetime.tsx')),],
     ['-38- yuv', lazyWithPreload(() => import('./try38-yuv.tsx')),],
+    ['-39- webgl', lazyWithPreload(() => import('./try39-webgl.tsx')),],
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
