@@ -55,7 +55,7 @@ function Vir({ datas, rowHeight, rowRenderer }: {
 }) {
 	const [startIndex, setStartIndex] = useState(0)
 	const [endIndex, setEndIndex] = useState(0)
-	const refContainer = useRef<HTMLDivElement>(null)
+	const refContainer = useRef<HTMLDivElement>(null!)
 	function handleScroll(e?: Event) {
 		// console.log(e.scrollTop);
 		const overflowPixel = window.innerHeight / 2
