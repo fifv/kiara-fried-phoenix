@@ -117,7 +117,8 @@ function WorkerAndCanvas() {
             console.error("No Worker or refCanvas.current?! This shouldn't happen!", refWorker.current, refCanvas.current)
         }
         /**
-         * use canvasKey as dep is okay
+         * use canvasKey as dep is okay, BUT, only use key while not checking refCanvasPrev.current still crash 
+         * on HMR. may be because even key didn't change, the effect still run with old key when mounted
          */
     }, [canvasKey])
 

@@ -33,7 +33,7 @@ export default function App() {
             // url.searchParams.set('start', new Date('2026-01-01T13:56:55+08:00').toISOString())
             // url.searchParams.set('end', new Date('2026-02-01T17:56:55+08:00').toISOString())
             const end = new Date()
-            const start = new Date(end.getTime() - 900 * 24 * 3600 * 1000) 
+            const start = new Date(end.getTime() - 900 * 24 * 3600 * 1000)
             url.searchParams.set('start', start.toISOString())
             url.searchParams.set('end', end.toISOString())
             url.searchParams.set('limit', '-1')
@@ -238,7 +238,7 @@ function ProfileChart({ bucketData, minTime }: {
             scale: true,
             axisLabel: {
                 formatter: (val: number) => {
-                    return Math.max(0, val - minTime) + ' ms' 
+                    return Math.max(0, val - minTime) + ' ms'
                 },
             },
         },
