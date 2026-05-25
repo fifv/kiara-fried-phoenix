@@ -36,6 +36,7 @@ export default function App() {
                 uniformLocations: {
                     modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
                     projectionMatrix: gl.getUniformLocation(shaderProgram, "uProjectionMatrix"),
+                    globalColorMultiplier: gl.getUniformLocation(shaderProgram, "uGlobalColorMultiplier"),
                 },
             }
             const vao = initBuffers(gl, programInfo)
@@ -101,6 +102,7 @@ interface ProgramInfo {
     uniformLocations: {
         modelViewMatrix: WebGLUniformLocation | null
         projectionMatrix: WebGLUniformLocation | null
+        globalColorMultiplier: WebGLUniformLocation | null
     },
 
 
@@ -237,6 +239,7 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
         gl.useProgram(programInfo.program)
         gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
         gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
+        gl.uniform4f(programInfo.uniformLocations.globalColorMultiplier, 1, 1, 1, 1)
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
@@ -273,7 +276,7 @@ const BasicRange: React.FC<{ values: number[], setValues: (values: number[]) => 
                             display: "flex",
                             width: "100%",
                         } }
-                        // className="w-full h-18 flex"
+                    // className="w-full h-18 flex"
                     >
                         <div
                             ref={ props.ref }

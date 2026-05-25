@@ -6,7 +6,6 @@ in vec4 aVertexColor;
 
 uniform mat4 uModelViewMatrix;
 uniform mat4 uProjectionMatrix;
-// uniform vec4 uGlobalColorMultiplier;
 
 out mediump vec4 vColor;
 
