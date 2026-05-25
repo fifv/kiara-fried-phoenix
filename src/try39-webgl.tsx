@@ -90,9 +90,10 @@ function initShaderProgram(gl: WebGL2RenderingContext, vsSource: string, fsSourc
         gl.shaderSource(shader, source)
         gl.compileShader(shader)
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            alert(`compile shader failed: ${gl.getShaderInfoLog(shader)}`)
+            const msg = `compile shader failed: ${gl.getShaderInfoLog(shader)}`
+            // alert(msg)
             gl.deleteShader(shader)
-            throw ""
+            throw msg
         }
         return shader
     }
