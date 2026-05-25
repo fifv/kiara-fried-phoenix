@@ -6,6 +6,7 @@ import { mat4 } from 'gl-matrix'
 export default function App() {
     const [count, setCount] = useState(0)
     const refCanvas = useRef<HTMLCanvasElement>(null!)
+    const refGl = useRef<WebGL2RenderingContext>(null)
     useEffect(() => {
         const canvas = refCanvas.current
         const gl = canvas.getContext("webgl2")
@@ -13,8 +14,8 @@ export default function App() {
             alert('webgl2 not supported')
             throw "?"
         }
-        gl.clearColor(0.5, 1.0, 0.7, 1.0)
-        gl.clear(gl.COLOR_BUFFER_BIT)
+        refGl.current = gl
+
 
         const { programInfo, buffers } = (() => {
             const shaderProgram = initShaderProgram(gl, vert, frag)
@@ -31,8 +32,24 @@ export default function App() {
             const buffers = initBuffers(gl)
             return { programInfo, buffers }
         })()
-        drawScene(gl, programInfo, buffers)
+
+
+        const resizeObserver = new ResizeObserver(([entry]) => {
+            if (entry.target instanceof HTMLCanvasElement) {
+                entry.target.width = entry.devicePixelContentBoxSize[0]?.inlineSize ?? 0
+                entry.target.height = entry.devicePixelContentBoxSize[0]?.blockSize ?? 0
+                gl.viewport(0, 0, entry.target.width, entry.target.height)
+            }
+            drawScene(gl, programInfo, buffers)
+        })
+        resizeObserver.observe(canvas, { box: "device-pixel-content-box" })
+
+        return () => {
+            resizeObserver.disconnect()
+        }
     }, [])
+
+
     return (
         <div>
             <canvas ref={ refCanvas } className={ clsx(
@@ -60,6 +77,8 @@ interface ProgramInfo {
 interface Buffers {
     position: WebGLBuffer,
 }
+
+
 
 function initShaderProgram(gl: WebGL2RenderingContext, vsSource: string, fsSource: string) {
     function loadShader(gl: WebGL2RenderingContext, type: GLenum, source: string) {
@@ -123,7 +142,7 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, buffers
     const fieldOfView = (45 * Math.PI) / 180
     const canvas = gl.canvas
     if (canvas instanceof HTMLCanvasElement) {
-        const aspect = canvas.clientWidth / canvas.clientHeight
+        const aspect = canvas.width / canvas.height
         const zNear = .1
         const zFar = 100.
         const projectionMatrix = mat4.create()
