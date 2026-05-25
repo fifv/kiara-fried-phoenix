@@ -19,7 +19,9 @@ export default function App() {
 
         const { programInfo, vao } = (() => {
             const shaderProgram = initShaderProgram(gl, vert, frag)
-
+            /**
+             * the locations of attribute is specific to vert and frag, so they should live here, not `initShaderProgram`
+             */
             const programInfo: ProgramInfo = {
                 program: shaderProgram,
                 attribLocations: {
@@ -63,7 +65,16 @@ export default function App() {
     )
 }
 
-
+/**
+ * Program is vertex shader + fragment shader
+ * they have some params (attributes, uniforms) we can pass
+ * to access them in the cpu side, we need getAttribLocation() and getUniformLocation(), and store here together with program
+ * 
+ * to add an attribute in shader
+ * 1. add in shader
+ * 2. add the the location member here, and typescript will warn me to add the getXxxLocation()
+ * 3. use it when init buffers
+ */
 interface ProgramInfo {
     program: WebGLProgram,
     attribLocations: {
