@@ -22,7 +22,8 @@ export default function App() {
             const programInfo: ProgramInfo = {
                 program: shaderProgram,
                 attribLocations: {
-                    vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition")
+                    vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+                    vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
                 },
                 uniformLocations: {
                     modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
@@ -66,16 +67,18 @@ interface ProgramInfo {
     program: WebGLProgram,
     attribLocations: {
         vertexPosition: GLint
+        vertexColor: GLint
     },
     uniformLocations: {
-        modelViewMatrix: WebGLUniformLocation | null,
-        projectionMatrix: WebGLUniformLocation | null,
+        modelViewMatrix: WebGLUniformLocation | null
+        projectionMatrix: WebGLUniformLocation | null
     },
 
 
 }
 interface Buffers {
     position: WebGLBuffer,
+    color: WebGLBuffer,
 }
 
 
@@ -113,16 +116,29 @@ function initShaderProgram(gl: WebGL2RenderingContext, vsSource: string, fsSourc
 
 
 function initBuffers(gl: WebGL2RenderingContext): Buffers {
-    function initPositionBuffer(gl: WebGL2RenderingContext) {
+    const positionBuffer = (() => {
         const positionBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
         const positions = [1., 1., -1., 1., 1., -1., -1., -1.]
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
         return positionBuffer
-    }
-    const positionBuffer = initPositionBuffer(gl)
+    })()
+    const colorBuffer = (() => {
+        const colorBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+        const colors = [
+            1., 1., 1., 1., // white
+            1., 0., 0., 1., // red
+            0., 1., 0., 1., // green
+            0., 0., 1., 1., // blue
+        ]
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+        return colorBuffer
+    })()
+
     return {
         position: positionBuffer,
+        color: colorBuffer,
     }
 }
 
@@ -139,6 +155,11 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, buffers
         gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
         gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
     }
+    function setColorAttribute(gl: WebGL2RenderingContext, programInfo: ProgramInfo, buffers: Buffers) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color)
+        gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+    }
 
     const fieldOfView = (45 * Math.PI) / 180
     const canvas = gl.canvas
@@ -149,10 +170,11 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, buffers
         const projectionMatrix = mat4.create()
         mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
         const modelViewMatrix = mat4.create()
-
-        mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.])
+        
+        mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.0])
 
         setPositionAttribute(gl, programInfo, buffers)
+        setColorAttribute(gl, programInfo, buffers)
 
         gl.useProgram(programInfo.program)
         gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
