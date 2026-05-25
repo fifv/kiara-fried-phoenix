@@ -1,12 +1,17 @@
 import { clsx } from "clsx"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 import vert from './try39-webgl.vert?raw'
 import frag from './try39-webgl.frag?raw'
 import { mat4 } from 'gl-matrix'
+import { getTrackBackground, Range } from 'react-range'
 export default function App() {
-    // const [count, setCount] = useState(0)
+    const [rotation, setRotation] = useState(0)
     const refCanvas = useRef<HTMLCanvasElement>(null!)
     // const refGl = useRef<WebGL2RenderingContext>(null)
+
+    const getState = useEffectEvent(() => {
+        return rotation
+    })
     useEffect(() => {
         const canvas = refCanvas.current
         const gl = canvas.getContext("webgl2")
@@ -44,15 +49,22 @@ export default function App() {
                 entry.target.height = entry.devicePixelContentBoxSize[0]?.blockSize ?? 0
                 gl.viewport(0, 0, entry.target.width, entry.target.height)
             }
-            drawScene(gl, programInfo, vao)
+            drawScene(gl, programInfo, vao, getState())
         })
         resizeObserver.observe(canvas, { box: "device-pixel-content-box" })
 
+        let raf = requestAnimationFrame(render)
+        function render(time: DOMHighResTimeStamp) {
+            // drawScene(gl!, programInfo, vao, time * 0.031 % (Math.PI * 2))
+            drawScene(gl!, programInfo, vao, getState())
+            raf = requestAnimationFrame(render)
+        }
+
         return () => {
             resizeObserver.disconnect()
+            cancelAnimationFrame(raf)
         }
     }, [])
-
 
     return (
         <div>
@@ -61,6 +73,11 @@ export default function App() {
             ) }>
 
             </canvas>
+            {/* <input type="range" className="w-full" name="" id="" value={ rotation * 10 } onChange={ (e) => setRotation(e.currentTarget.valueAsNumber / 10.0) } /> */ }
+            <div className="mx-32">
+
+                <BasicRange values={ [rotation] } setValues={ (x) => { setRotation(x[0]) } } name="Rotation" />
+            </div>
         </div>
     )
 }
@@ -185,7 +202,7 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
     return vao
 }
 
-function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: WebGLVertexArrayObject) {
+function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: WebGLVertexArrayObject, zRotation: number) {
     gl.clearColor(.0, .0, .0, .0)
     gl.clearDepth(1.)
     gl.enable(gl.DEPTH_TEST)
@@ -206,6 +223,13 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
 
         mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.0])
 
+        mat4.rotate(
+            modelViewMatrix, // destination matrix
+            modelViewMatrix, // matrix to rotate
+            zRotation, // amount to rotate in radians
+            [0, 0, 1], // axis to rotate around 
+        )
+
         // setPositionAttribute(gl, programInfo, buffers)
         // setColorAttribute(gl, programInfo, buffers)
         gl.bindVertexArray(vao)
@@ -217,4 +241,90 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
 
+}
+
+
+
+const BasicRange: React.FC<{ values: number[], setValues: (values: number[]) => void, name?: string }> = ({ values, setValues, name = "" }) => {
+    const STEP = 0.00001
+    const MIN = -1 * (2 * Math.PI)
+    const MAX = 1 * (2 * Math.PI)
+    return (
+        <div
+            style={ {
+                display: "flex",
+                justifyContent: "center",
+                flexWrap: "wrap",
+            } }
+        >
+            <Range
+                values={ values }
+                step={ STEP }
+                min={ MIN }
+                max={ MAX }
+                onChange={ (values) => setValues(values) }
+                renderTrack={ ({ props, children }) => (
+                    <div
+                        onMouseDown={ props.onMouseDown }
+                        onTouchStart={ props.onTouchStart }
+                        style={ {
+                            ...props.style,
+                            height: "72px",
+                            display: "flex",
+                            width: "100%",
+                        } }
+                        // className="w-full h-18 flex"
+                    >
+                        <div
+                            ref={ props.ref }
+                            style={ {
+                                height: "5px",
+                                width: "100%",
+                                borderRadius: "4px",
+                                background: getTrackBackground({
+                                    values,
+                                    colors: ["#85fa80", "#ccc"],
+                                    min: MIN,
+                                    max: MAX,
+                                }),
+                                alignSelf: "center",
+                            } }
+                        >
+                            { children }
+                        </div>
+                    </div>
+                ) }
+                renderThumb={ ({ props, isDragged }) => (
+                    <div
+                        { ...props }
+                        key={ props.key }
+                        style={ {
+                            ...props.style,
+                            height: "42px",
+                            width: "42px",
+                            borderRadius: "4px",
+                            backgroundColor: "#FFF",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            boxShadow: "0px 2px 6px #AAA",
+                        } }
+                    >
+                        <div
+                            style={ {
+                                height: "16px",
+                                width: "5px",
+                                backgroundColor: isDragged ? "#85fa80" : "#CCC",
+                            } }
+                        />
+                    </div>
+                ) }
+            />
+            <output style={ { marginTop: "30px" } } id="output" className={ clsx(
+                'font-mono',
+            ) }>
+                <span className="text-xs text-white/40">{ name }</span> { (values[0] / (2 * Math.PI)).toFixed(3) }
+            </output>
+        </div>
+    )
 }
