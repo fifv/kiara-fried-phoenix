@@ -4,9 +4,9 @@ import vert from './try39-webgl.vert?raw'
 import frag from './try39-webgl.frag?raw'
 import { mat4 } from 'gl-matrix'
 export default function App() {
-    const [count, setCount] = useState(0)
+    // const [count, setCount] = useState(0)
     const refCanvas = useRef<HTMLCanvasElement>(null!)
-    const refGl = useRef<WebGL2RenderingContext>(null)
+    // const refGl = useRef<WebGL2RenderingContext>(null)
     useEffect(() => {
         const canvas = refCanvas.current
         const gl = canvas.getContext("webgl2")
@@ -14,11 +14,12 @@ export default function App() {
             alert('webgl2 not supported')
             throw "?"
         }
-        refGl.current = gl
+        // refGl.current = gl
 
 
         const { programInfo, vao } = (() => {
             const shaderProgram = initShaderProgram(gl, vert, frag)
+
             const programInfo: ProgramInfo = {
                 program: shaderProgram,
                 attribLocations: {
@@ -106,6 +107,7 @@ function initShaderProgram(gl: WebGL2RenderingContext, vsSource: string, fsSourc
     gl.linkProgram(shaderProgram)
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
         alert(`linkProgram failed: ${gl.getProgramInfoLog(shaderProgram)}`)
+        throw '?'
     }
     return shaderProgram
 }
@@ -119,27 +121,53 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
      * OHHH! VAO works!
      * it combines data (bindBuffer()) and data layout (vertexAttribPointer()) together! elegant!
      */
-    {
-        const positionBuffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-        const positions = [1., 1., -1., 1., 1., -1., -1., -1.]
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
-        gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
-        gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
+    if (true) {
+        {
+            const positionBuffer = gl.createBuffer()
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+            const positions = [
+                1., 1.,
+                -1., 1.,
+                1., -1.,
+                -1., -1.,
+            ]
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
+            gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
+        }
+        {
+            const colorBuffer = gl.createBuffer()
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+            const colors = [
+                1., 1., 1., 1., // white
+                1., 0., 0., 1., // red
+                0., 1., 0., 1., // green
+                0., 0., 1., 1., // blue
+            ]
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+            gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+        }
+    } else {
+        {
+            const buffer = gl.createBuffer()
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+            /* x,y, r,g,b,a, */
+            const attributes = [
+                1., 1., /* Position */ 1., 1., 1., 1., /* white */
+                -1., 1., /* Position */ 1., 0., 0., 1., /* red */
+                1., -1., /* Position */ 0., 1., 0., 1., /* green */
+                -1., -1., /* Position */ 0., 0., 1., 1., /* blue */
+            ]
+            const FLOAT_SIZE = Float32Array.BYTES_PER_ELEMENT
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(attributes), gl.STATIC_DRAW)
+            gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 6 * FLOAT_SIZE, 0)
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
+            gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 6 * FLOAT_SIZE, 2 * FLOAT_SIZE)
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+        }
     }
-    {
-        const colorBuffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
-        const colors = [
-            1., 1., 1., 1., // white
-            1., 0., 0., 1., // red
-            0., 1., 0., 1., // green
-            0., 0., 1., 1., // blue
-        ]
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
-        gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
-        gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
-    }
+
 
     gl.bindVertexArray(null)
 
