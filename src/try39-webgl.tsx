@@ -4,6 +4,7 @@ import vert from './try39-webgl.vert?raw'
 import frag from './try39-webgl.frag?raw'
 import { mat4 } from 'gl-matrix'
 import { getTrackBackground, Range } from 'react-range'
+
 export default function App() {
     const [rotation, setRotation] = useState(0)
     const refCanvas = useRef<HTMLCanvasElement>(null!)
@@ -37,6 +38,7 @@ export default function App() {
                     modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
                     projectionMatrix: gl.getUniformLocation(shaderProgram, "uProjectionMatrix"),
                     globalColorMultiplier: gl.getUniformLocation(shaderProgram, "uGlobalColorMultiplier"),
+                    resolution: gl.getUniformLocation(shaderProgram, "uResolution"),
                 },
             }
             const vao = initBuffers(gl, programInfo)
@@ -64,6 +66,15 @@ export default function App() {
         return () => {
             resizeObserver.disconnect()
             cancelAnimationFrame(raf)
+        }
+    }, [])
+
+    useEffect(() => {
+        const si = setInterval(() => {
+            setRotation((x) => ((x + 0.01) % (2 * Math.PI)))
+        }, 10)
+        return () => {
+            clearInterval(si)
         }
     }, [])
 
@@ -103,6 +114,7 @@ interface ProgramInfo {
         modelViewMatrix: WebGLUniformLocation | null
         projectionMatrix: WebGLUniformLocation | null
         globalColorMultiplier: WebGLUniformLocation | null
+        resolution: WebGLUniformLocation | null
     },
 
 
@@ -150,6 +162,15 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
     /**
      * OHHH! VAO works!
      * it combines data (bindBuffer()) and data layout (vertexAttribPointer()) together! elegant!
+     * so VAO records two things:
+     * 1. which ARRAY_BUFFER are bound <- not "bound", should be "used", as only one ARRAY_BUFFER can be bound
+     * 2. what are their data layout
+     * then in vertex shader, each vertex has its attributes
+     * 
+     * enableVertexAttribArray() is the one actually takes effect, it makes vertices available
+     * only vertexAttribPointer() will use current bindBuffer(), not draw call
+     * only one ARRAY_BUFFER can be bind at same time, and draw call doesn't need any bound ARRAY_BUFFER
+     * (but don't delete ARRAY_BUFFER)
      */
     if (true) {
         {
@@ -164,6 +185,7 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
             gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
+            gl.bindBuffer(gl.ARRAY_BUFFER, null) /* only vertexAttribPointer() need */
         }
         {
             const colorBuffer = gl.createBuffer()
@@ -177,6 +199,7 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
             gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+            gl.bindBuffer(gl.ARRAY_BUFFER, null)
         }
     } else {
         {
@@ -195,6 +218,7 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
             gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 6 * FLOAT_SIZE, 2 * FLOAT_SIZE)
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+            gl.bindBuffer(gl.ARRAY_BUFFER, null)
         }
     }
 
@@ -216,31 +240,37 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
     const fieldOfView = (45 * Math.PI) / 180
     const canvas = gl.canvas
     if (canvas instanceof HTMLCanvasElement) {
-        const aspect = canvas.width / canvas.height
-        const zNear = .1
-        const zFar = 100.
+        /* move the camera */
         const projectionMatrix = mat4.create()
-        mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
+        mat4.perspective(projectionMatrix, fieldOfView, canvas.width / canvas.height, .1, 100.)
+        mat4.rotate(projectionMatrix, projectionMatrix, zRotation, [0, 0, -1])
+
+
+        /* move the model */
         const modelViewMatrix = mat4.create()
-
         mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.0])
-
         mat4.rotate(
             modelViewMatrix, // destination matrix
             modelViewMatrix, // matrix to rotate
             zRotation, // amount to rotate in radians
-            [0, 0, 1], // axis to rotate around 
+            [1, 1, 1.5], // axis to rotate around , values' proportion matters
         )
 
         // setPositionAttribute(gl, programInfo, buffers)
         // setColorAttribute(gl, programInfo, buffers)
-        gl.bindVertexArray(vao)
 
         gl.useProgram(programInfo.program)
         gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
         gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
         gl.uniform4f(programInfo.uniformLocations.globalColorMultiplier, 1, 1, 1, 1)
+        gl.uniform2f(programInfo.uniformLocations.resolution, canvas.width, canvas.height)
 
+        /**
+         * 0,4 means draw vertex 0,1,2,3
+         * vertices come from enableVertexAttribArray(), and it's recorded vertexAttribPointer() and ARRAY_BUFFER
+         * which all recorded in VAO
+         */
+        gl.bindVertexArray(vao)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
 
