@@ -26,3 +26,4 @@ dist-ssr
 /public
 bun.lockb
 *.png
+/public/*.mkv
