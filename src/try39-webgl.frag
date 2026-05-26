@@ -9,8 +9,15 @@ out mediump vec4 myColor;
 
 void main() {
     // mediump vec2 uv = gl_FragCoord.xy / uResolution;
-    mediump vec2 uv = (vVertexPosition.xy + 1.);
+    // mediump vec2 uv = (vVertexPosition.xy + 1.) / 2.;
+    mediump vec2 uv = vVertexPosition.xy;
+
+    mediump float d = length(uv);
+    d = sin(d * 80.) / 80.;
+    d = abs(d);
+    // d = step(0.1, d);
+    d = smoothstep(0.001, 0.01, d);
     // myColor = vec4(0.3, 0.6, 0.8, 1.0);
     // myColor = vColor * uGlobalColorMultiplier;
-    myColor = vec4(uv, uv.x, 1.0);
+    myColor = vec4(d, d, d, 1.0);
 }
