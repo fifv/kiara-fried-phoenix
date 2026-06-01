@@ -54,7 +54,7 @@ export default function App() {
     }, [])
     return (
         <div>
-            <video ref={ refVideo } controls className="h-72 w-128" />
+            <video ref={ refVideo } controls muted autoPlay className="h-72 w-128" />
         </div>
     )
 }

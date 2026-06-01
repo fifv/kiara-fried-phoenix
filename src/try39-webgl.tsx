@@ -177,13 +177,13 @@ function initBuffers(gl: WebGL2RenderingContext, programInfo: ProgramInfo): WebG
             const positionBuffer = gl.createBuffer()
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
             const positions = [
-                1., 1.,
-                -1., 1.,
-                1., -1.,
-                -1., -1.,
+                1., 1., 1,
+                -1., 1., 1,
+                1., -1., -3,
+                -1., -1., 1,
             ]
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
-            gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0)
+            gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0)
             gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
             gl.bindBuffer(gl.ARRAY_BUFFER, null) /* only vertexAttribPointer() need */
         }
@@ -233,6 +233,9 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
     gl.clearDepth(1.)
     gl.enable(gl.DEPTH_TEST)
     gl.depthFunc(gl.LEQUAL)
+    /* enable alpha transparency */
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -253,7 +256,8 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
             modelViewMatrix, // destination matrix
             modelViewMatrix, // matrix to rotate
             zRotation, // amount to rotate in radians
-            [1, 1, 1.5], // axis to rotate around , values' proportion matters
+            // [1, 1, 1.5], // axis to rotate around , values' proportion matters
+            [1, 1, 5.5], // axis to rotate around , values' proportion matters
         )
 
         // setPositionAttribute(gl, programInfo, buffers)
@@ -271,6 +275,11 @@ function drawScene(gl: WebGL2RenderingContext, programInfo: ProgramInfo, vao: We
          * which all recorded in VAO
          */
         gl.bindVertexArray(vao)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+        // mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -16.0])
+        mat4.translate(modelViewMatrix, modelViewMatrix, [-3.0, .0, -2.0])
+        gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     }
 

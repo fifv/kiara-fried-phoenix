@@ -17,6 +17,29 @@ interface BucketData {
         title: string
     }
 }
+interface Info {
+    hostname: string
+    version: string
+    testing: boolean
+    device_id: string
+}
+interface Buckets {
+    [bucketName: string]: {
+        id: string
+        type: string
+        client: string
+        hostname: string
+        created: string
+        data: object,
+        metadata: {
+            start: string
+            end: string
+        },
+        events: null,
+        last_updated: null
+    },
+}
+
 export default function App() {
     const [data, setData] = useState<BucketData[]>([])
     const refDivRef = useRef<HTMLDivElement>(null)
@@ -27,35 +50,46 @@ export default function App() {
     })
 
     useEffect(() => {
-        const url = (() => {
-            // const url = new URL('http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-ThinkBook/events')
-            const url = new URL('http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-loating/events')
-            // url.searchParams.set('start', new Date('2026-01-01T13:56:55+08:00').toISOString())
-            // url.searchParams.set('end', new Date('2026-02-01T17:56:55+08:00').toISOString())
-            const end = new Date()
-            const start = new Date(end.getTime() - 900 * 24 * 3600 * 1000)
-            url.searchParams.set('start', start.toISOString())
-            url.searchParams.set('end', end.toISOString())
-            url.searchParams.set('limit', '-1')
-            return url
-        })()
-        // const url = `http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-ThinkBook/events?start=${encodeURIComponent()}&end=${encodeURIComponent('2026-02-01T17:56:55+08:00')}&limit=-1`
-        console.log(url)
-        try {
-            fetch(url).then(async (data) => {
-                if (data.ok) {
-                    try {
-                        const d = await data.json()
-                        console.log(d)
-                        setData(d)
-                    } catch (error) {
-                        console.log(error)
-                    }
+        (async function func() {
+            const info = await fetch('http://localhost:5600/api/0/info').then((x) => x.json()) as Info
+            console.log('info:', info)
+            const buckets = await fetch('http://localhost:5600/api/0/buckets/').then((x) => x.json()) as Buckets
+            console.log('buckets:', buckets)
+            const windowsBucket = Object.entries(buckets).find(([bucketName, bucketInfo]) => bucketInfo.type === 'currentwindow' && bucketInfo.hostname === info.hostname)?.[1]
+            if (windowsBucket) {
+                const url = (() => {
+                    // const url = new URL('http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-ThinkBook/events')
+                    // const url = new URL('http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-loating/events')
+                    const url = new URL(`http://localhost:5600/api/0/buckets/${windowsBucket.id}/events`)
+                    // url.searchParams.set('start', new Date('2026-01-01T13:56:55+08:00').toISOString())
+                    // url.searchParams.set('end', new Date('2026-02-01T17:56:55+08:00').toISOString())
+                    const end = new Date()
+                    const start = new Date(end.getTime() - 90 * 24 * 3600 * 1000)
+                    url.searchParams.set('start', start.toISOString())
+                    url.searchParams.set('end', end.toISOString())
+                    url.searchParams.set('limit', '-1')
+                    return url
+                })()
+                // const url = `http://localhost:5600/api/0/buckets/aw-watcher-window_Fifv-ThinkBook/events?start=${encodeURIComponent()}&end=${encodeURIComponent('2026-02-01T17:56:55+08:00')}&limit=-1`
+                console.log(url)
+                try {
+                    fetch(url).then(async (data) => {
+                        if (data.ok) {
+                            try {
+                                const d = await data.json()
+                                console.log(d)
+                                setData(d)
+                            } catch (error) {
+                                console.log(error)
+                            }
+                        }
+                    })
+                } catch (error) {
+                    console.log(error)
                 }
-            })
-        } catch (error) {
-            console.log(error)
-        }
+            }
+
+        })()
     }, [])
     return (
         <div className={ clsx(
