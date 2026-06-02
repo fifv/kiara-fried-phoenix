@@ -30,7 +30,12 @@ app.use((req, res, next) => {
 console.log(path.join(import.meta.dirname, '..', 'public'))
 console.log(mime.lookup('test.mp4'))
 // Serve static files
-app.use(express.static(path.join(import.meta.dirname, '..', 'public')))
+app.use(express.static(path.join(import.meta.dirname, '..', 'public'), {
+    etag: false,
+    setHeaders: (res, path) => {
+        res.set('Cache-Control', 'no-store')
+    }
+}))
 
 app.listen(3001, () => {
     console.log('Listening on http://0.0.0.0:3001')
