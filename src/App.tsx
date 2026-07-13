@@ -73,6 +73,7 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['-38- yuv', lazyWithPreload(() => import('./try38-yuv.tsx')),],
     ['-39- webgl', lazyWithPreload(() => import('./try39-webgl.tsx')),],
     ['-40- mediabunny', lazyWithPreload(() => import('./try40-mediabunny.tsx')),],
+    ['-41- webcodecs', lazyWithPreload(() => import('./try41-webcodecs.tsx')),],
     ['calc', lazyWithPreload(() => import('./tools/minecraft-exp-calculator')),],
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
