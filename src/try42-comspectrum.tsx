@@ -2,14 +2,21 @@ import useWebSocket, { ReadyState, } from "react-use-websocket"
 import { useEffect, useRef, useState } from "react"
 import { clsx } from "clsx"
 import Fft from 'fft.js'
-import { blackman, hann } from "fft-windowing-ts"
+import { blackman, blackman_harris, hann } from "fft-windowing-ts"
+import { useImmer } from "use-immer"
+import { enableMapSet } from 'immer'
+
+import AudioSineWaveGenerator from './try43-audiocontext'
+import { chunk, maxBy, mean } from "es-toolkit"
+
+enableMapSet()
 
 
 export default function App() {
-    const [count, setCount] = useState(0)
     /* length == 512 */
     const [spectrum, setSpectrum] = useState<number[]>(new Array(512))
     const [samples, setSamples] = useState<number[]>([])
+    const [peakMap, setPeakMap] = useImmer<FrequencyPeakMap>(new Map)
 
 
     const { sendJsonMessage, readyState, getWebSocket, } = useWebSocket<WsRxMessage | null>(
@@ -53,6 +60,7 @@ export default function App() {
                     /* FFT'd data */
                     /* @ts-expect-error shut up */
                     if (wsMessage.data.payload.length === 2048) {
+                        /* @ts-expect-error shut up */
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const spectrum = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
                         // console.log(spectrum)
@@ -66,8 +74,10 @@ export default function App() {
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
+                        const sampleRate = 48000
                         // const fftSize = 8192
-                        const fftSize = 8192 * 4
+                        // const fftSize = 4096
+                        const fftSize = 512
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
@@ -78,14 +88,41 @@ export default function App() {
                             } else {
                                 const enoughSamples = samples.slice(0, fftSize)
                                 const fft = new Fft(fftSize)
-                                const fftResult = fft.createComplexArray()
-                                fft.realTransform(fftResult, blackman(enoughSamples))
-                                /* result is 16384, last half undefined */
-                                setSpectrum(fftResult.slice(0, fftSize))
+                                const fftResult = fft.createComplexArray() as number[]
+                                fft.realTransform(fftResult, blackman_harris(enoughSamples))
+
+                                /**
+                                 * even realTransform(), the result is still complex numbers, we need 
+                                 * 1. use first half, second half are just a mirror (samplerate@48000Hz -> firsthalf@24000Hz) (fftResult is fftSize*2)
+                                 * 2. use elegant chunk() to split all complex, and sqrt them (unnecessary)
+                                 * 3. FFT result is a sum, depened on fftSize, so /fftSize to normalize it. and *2 to compensate the second half lost
+                                 * 
+                                 * the spectrum.length === fftSize / 2 
+                                 */
+                                const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
+                                    Math.hypot(real, imag) * 2 / fftSize
+                                )
+                                // console.log(spectrum.length)
+                                setSpectrum(spectrum)
+
+                                const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
+                                if (peak) {
+                                    setPeakMap((peakMap) => {
+                                        const frequency = Math.round((sampleRate / 2) * (peak.i / (fftSize / 2)))
+                                        let existingPeak = peakMap.get(frequency)
+                                        if (!existingPeak) {
+                                            existingPeak = { amplitudes: [] }
+                                            peakMap.set(frequency, existingPeak)
+                                        }
+                                        existingPeak.amplitudes.push(peak.value)
+                                        // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
+                                    })
+                                }
                                 // console.log(fftResult)
                                 return []
                             }
                         })
+                        // console.log(peakMap)
                         // console.log(spectrum)
                         // setSpectrum(Array.from(spectrum))
                     } else {
@@ -105,7 +142,7 @@ export default function App() {
             }
         }
         /* since we use addEventListener now, which is safe an fast, we can ignore the chance that effect run too much */
-    }, [getWebSocket, readyState])
+    }, [getWebSocket, peakMap, readyState, setPeakMap])
 
     return (
         <div>
@@ -117,8 +154,17 @@ export default function App() {
             ) }>
 
                 <SpectrumCanvas spectrum={ spectrum } />
+                <SpectrumCanvas spectrum={ (() => {
+                    // console.log(peakMap)
+                    const spect = new Array(spectrum.length).fill(0)
+                    for (const [frequency, value] of peakMap) {
+                        spect[Math.round(frequency / (48000 / 2) * spectrum.length)] = mean(value.amplitudes)
+                    }
+                    return spect
+                })() } />
             </div>
-            <button onClick={ () => { playSineWave(20, 1) } }>20</button>
+            <AudioSineWaveGenerator />
+            {/* <button onClick={ () => { playSineWave(20, 1) } }>20</button>
             <button onClick={ () => { playSineWave(40, 1) } }>40</button>
             <button onClick={ () => { playSineWave(140, 1) } }>140</button>
             <button onClick={ () => { playSineWave(240, 1) } }>240</button>
@@ -129,7 +175,7 @@ export default function App() {
             <button onClick={ () => { playSineWave(8440, 1) } }>8440</button>
             <button onClick={ () => { playSineWave(20000, 1) } }>20000</button>
             <button onClick={ () => { playSineWave(30000, 1) } }>30000</button>
-            <button onClick={ () => { playSineWave(48000, 1) } }>48000</button>
+            <button onClick={ () => { playSineWave(48000, 1) } }>48000</button> */}
         </div>
     )
 }
@@ -155,6 +201,14 @@ function playSineWave(frequency: number = 440, duration: number = 1): void {
     oscillator.start()
     oscillator.stop(audioCtx.currentTime + duration)
 }
+
+type FrequencyPeakMap = Map<
+    number, {
+        // frequnecy: number
+        amplitudes: number[]
+    }
+>
+
 
 export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -238,7 +292,7 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
         // 根據 ES8388 規格設定合理的視覺動態範圍
         const MAX_DB = 0     // 畫布最頂端 (0 dB)
-        const MIN_DB = -50    // 畫布最底端 (-70 dB)，環境雜訊以下切掉不看
+        const MIN_DB = -100    // 畫布最底端 (-70 dB)，環境雜訊以下切掉不看
 
         // for (let i = 0; i < numBars; i++) {
         //     const amplitude = spectrum[i] || 0
@@ -295,12 +349,12 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
             // 3. 換算成畫布的實際像素位置
             const x = logXCurrent * canvas.width
             const nextX = logXNext * canvas.width
-            const dynamicBarWidth = Math.max(1, nextX - x) // 確保寬度至少有 1 像素
+            const dynamicBarWidth = nextX - x
 
             const y = canvas.height - barHeight
 
             // 繪製（左邊低頻的長條會比較寬，右邊高頻會被壓縮擠在一起）
-            ctx.fillRect(x, y, dynamicBarWidth - 0.5, barHeight)
+            ctx.fillRect(x, y, dynamicBarWidth, barHeight)
         }
     }, [spectrum]) // 每當 50 FPS 的 spectrum 陣列更新時，就直接在畫布重繪
 
