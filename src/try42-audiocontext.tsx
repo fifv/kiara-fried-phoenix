@@ -3,13 +3,15 @@ import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { getTrackBackground, Range } from "react-range"
 export default function App() {
     const [frequency, setFrequency] = useState(1000)
+    const [gain, setGain] = useState(0.01)
     const [isActive, setIsActive] = useState(false)
 
     const refOscillator = useRef<OscillatorNode>(null)
+    const refGainNode = useRef<GainNode>(null)
 
-    const getFrequency = useEffectEvent(() => {
-        return frequency
-    })
+    const getFrequency = useEffectEvent(() => frequency)
+    const getGain = useEffectEvent(() => gain)
+
     useEffect(() => {
         const audioCtx = new AudioContext()
         // const oscillator = audioCtx.createOscillator()
@@ -22,8 +24,9 @@ export default function App() {
         refOscillator.current = oscillator
 
         const gainNode = new GainNode(audioCtx, {
-            gain: 0.1
+            gain: getGain()
         })
+        refGainNode.current = gainNode
         // oscillator.connect(audioCtx.destination)
         oscillator.connect(gainNode)
 
@@ -43,6 +46,7 @@ export default function App() {
                     console.log('audioCtx.state:', audioCtx.state)
                 })
                 refOscillator.current = null
+                refGainNode.current = null
             }
         }
 
@@ -53,12 +57,26 @@ export default function App() {
         if (oscillator) {
             oscillator.frequency.setValueAtTime(frequency, 0)
         }
-
     }, [frequency])
 
+    useEffect(() => {
+        const gainNode = refGainNode.current
+        if (gainNode) {
+            gainNode.gain.setValueAtTime(gain, 0)
+        }
+    }, [gain])
 
-    const min = 20
-    const max = 20000
+    /**
+     * map 20~20000 -> 0.0~1.0, with logrithm (i.e. change slow at first, then faster at end)
+     */
+    function rangeToLogUnit(rawValue: number, rawValueMin: number, rawValueMax: number) {
+        return Math.log(rawValue / rawValueMin) / Math.log(rawValueMax / rawValueMin)
+    }
+    function logUnitToRange(unitValue: number, rawValueMin: number, rawValueMax: number) {
+        return rawValueMin * (rawValueMax / rawValueMin) ** (unitValue)
+    }
+
+
     return (
         <div>
             <button className={ clsx(
@@ -71,13 +89,38 @@ export default function App() {
             <div className={ clsx(
                 'mx-12 w-[80vw]',
             ) }>
-                <BasicRange value={ Math.log(frequency / min) / Math.log(max / min) } setValue={ (x) => setFrequency(min * (max / min) ** (x)) } />
+                { (() => {
+                    const min = 20
+                    const max = 20000
+                    return <BasicRange value={ rangeToLogUnit(frequency, min, max) } setValue={ (x) => setFrequency(logUnitToRange(x, min, max)) } />
+                })() }
             </div>
-            <output style={ { marginTop: "30px" } } id="output" className={ clsx(
-                'font-mono',
+            <div className={ clsx(
+                'mx-12 w-[80vw]',
             ) }>
-                { (frequency).toFixed(3) }
-            </output>
+                { (() => {
+                    /**
+                     * 10^-5 == -100dB
+                     * 10^-4 == -80dB
+                     */
+                    const min = 1e-4
+                    const max = 1
+                    return <BasicRange value={ rangeToLogUnit(gain, min, max) } setValue={ (x) => setGain(logUnitToRange(x, min, max)) } />
+                })() }
+            </div>
+            <div className={ clsx(
+                'mx-12 w-[80vw]',
+            ) }>
+                { (() => {
+                    return <BasicRange value={ gain } setValue={ (x) => setGain(x) } />
+                })() }
+            </div>
+            <div className={ clsx('font-mono mt-12',) }>
+                Freq: { (frequency).toFixed(3) }
+            </div>
+            <div className={ clsx('font-mono',) }>
+                Gain: { (gain).toFixed(10) } ({ (Math.log10(gain) * 20).toFixed(2) }dB)
+            </div>
         </div>
     )
 }
@@ -165,7 +208,7 @@ const BasicRange: React.FC<{ value: number, setValue: (value: number) => void, n
                     </div>
                 ) }
             />
-            <output style={ { marginTop: "30px" } } id="output" className={ clsx(
+            <output style={ { marginTop: "0px" } } id="output" className={ clsx(
                 'font-mono',
             ) }>
                 { (value).toFixed(3) }
