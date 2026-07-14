@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Input, ReadableStreamSource, ALL_FORMATS, UrlSource, MATROSKA, Output, MP4, Mp4OutputFormat, Target, StreamTarget, BufferTarget, Conversion } from 'mediabunny'
+import { Input, UrlSource, MATROSKA, Output, Mp4OutputFormat, BufferTarget, Conversion } from 'mediabunny'
 export default function App() {
     const [count, setCount] = useState(0)
 
@@ -21,12 +21,22 @@ export default function App() {
 
 
             const output = new Output({
-                format: new Mp4OutputFormat(),
+                format: new Mp4OutputFormat({
+                    fastStart: 'in-memory',
+                }),
                 target: new BufferTarget(),
             })
             const conversion = await Conversion.init({
                 input: input,
                 output: output,
+                video: {
+                    codec: 'hevc',
+                    forceTranscode: true,
+                },
+                audio: {
+                    codec: 'aac',
+                    forceTranscode: true,
+                },
             })
             console.log('conversion.execute');
             console.time('conversion.execute');
@@ -54,7 +64,7 @@ export default function App() {
     }, [])
     return (
         <div>
-            <video ref={ refVideo } controls muted autoPlay className="h-72 w-128" />
+            <video ref={ refVideo } controls muted autoPlay playsInline className="h-72 w-128" />
         </div>
     )
 }

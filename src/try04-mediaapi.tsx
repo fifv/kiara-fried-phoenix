@@ -20,6 +20,7 @@ export default function App() {
             <button onClick={ () => { setVideoUrl("./media/test-hevc.mp4") } }>src: test-hevc.mp4</button>
             <button onClick={ () => { setVideoUrl("./media/test-hvc1.mp4") } }>src: test-hvc1.mp4</button>
             <button onClick={ () => { setVideoUrl("./media/test-hev1.mp4") } }>src: test-hev1.mp4</button>
+            <button onClick={ () => { setVideoUrl("http://192.168.31.64:3001/t.mp4") } }>src: ttt</button>
             <Player
                 videoUrl={ videoUrl }
                 startTimeSeconds={ videoUrl.includes('Rushia') ? 1000 : 100 }

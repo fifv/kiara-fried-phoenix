@@ -43,7 +43,7 @@ export default defineConfig({
         tailwindcss(),
     ],
     legacy: {
-        inconsistentCjsInterop: false,
+        inconsistentCjsInterop: true,
     },
     // base: './',
     base: './',
