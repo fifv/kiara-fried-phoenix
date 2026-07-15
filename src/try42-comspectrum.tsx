@@ -1,5 +1,5 @@
 import useWebSocket, { ReadyState, } from "react-use-websocket"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { clsx } from "clsx"
 import Fft from 'fft.js'
 import { blackman, blackman_harris, hann } from "fft-windowing-ts"
@@ -8,6 +8,32 @@ import { enableMapSet } from 'immer'
 
 import AudioSineWaveGenerator from './try43-audiocontext'
 import { chunk, maxBy, mean } from "es-toolkit"
+import uPlot from "uplot"
+import "uplot/dist/uPlot.min.css"
+import { create, ConverterType } from '@alexanderolsen/libsamplerate-js'
+import UPlotReact from "uplot-react"
+
+function downsample(samples: number[], scale: number): number[] {
+    if (!Number.isSafeInteger(scale) || scale < 1) {
+        throw new RangeError("downsample scale must be a positive integer")
+    }
+
+    const outputLength = Math.floor(samples.length / scale)
+    const output = new Array<number>(outputLength)
+
+    for (let outputIndex = 0; outputIndex < outputLength; outputIndex++) {
+        const inputStart = outputIndex * scale
+        let sum = 0
+
+        for (let offset = 0; offset < scale; offset++) {
+            sum += samples[inputStart + offset]!
+        }
+
+        output[outputIndex] = sum / scale
+    }
+
+    return output
+}
 
 enableMapSet()
 
@@ -15,9 +41,18 @@ enableMapSet()
 export default function App() {
     /* length == 512 */
     const [spectrum, setSpectrum] = useState<number[]>(new Array(512))
-    const [samples, setSamples] = useState<number[]>([])
+    const [spectrumLow, setSpectrumLow] = useState<number[]>([])
+    // const [samples, setSamples] = useState<number[]>([])
     const [peakMap, setPeakMap] = useImmer<FrequencyPeakMap>(new Map)
 
+
+    const refSamples = useRef<number[]>([])
+    const refLibsamplerate = useRef<Awaited<ReturnType<typeof create>>>(null)
+    useEffect(() => {
+        create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
+            refLibsamplerate.current = src
+        })
+    }, [])
 
     const { sendJsonMessage, readyState, getWebSocket, } = useWebSocket<WsRxMessage | null>(
         `ws://${location.hostname}:3304/wscom`,
@@ -71,60 +106,90 @@ export default function App() {
                 }
 
                 if (true) {
+                    const samples = refSamples.current
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
                         const sampleRate = 48000
                         // const fftSize = 8192
                         // const fftSize = 4096
-                        const fftSize = 512
+                        const fftSize = 1024
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
-                        setSamples((samples) => {
-                            // console.log("current samples", samples.length, performance.now())
-                            if (samples.length < fftSize) {
-                                return [...samples, ...newSamples]
-                            } else {
-                                const enoughSamples = samples.slice(0, fftSize)
+                        // console.log("current samples", samples.length, performance.now())
+                        samples.push(...newSamples)
+                        if (samples.length < fftSize) {
+                            /*  */
+                        } else {
+                            const enoughSamples = samples.slice(-fftSize)
+                            const fft = new Fft(fftSize)
+                            const fftResult = fft.createComplexArray() as number[]
+                            fft.realTransform(fftResult, blackman_harris(enoughSamples))
+
+                            /**
+                             * even realTransform(), the result is still complex numbers, we need 
+                             * 1. use first half, second half are just a mirror (samplerate@48000Hz -> firsthalf@24000Hz) (fftResult is fftSize*2)
+                             * 2. use elegant chunk() to split all complex, and sqrt them (unnecessary)
+                             * 3. FFT result is a sum, depened on fftSize, so /fftSize to normalize it. and *2 to compensate the second half lost
+                             * 
+                             * the spectrum.length === fftSize / 2 
+                             */
+                            const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
+                                Math.hypot(real, imag) * 2 / fftSize
+                            )
+                            // console.log(spectrum.length)
+                            setSpectrum(spectrum)
+
+                            const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
+                            if (peak) {
+                                setPeakMap((peakMap) => {
+                                    const frequency = Math.round((sampleRate / 2) * (peak.i / (fftSize / 2)))
+                                    let existingPeak = peakMap.get(frequency)
+                                    if (!existingPeak) {
+                                        existingPeak = { amplitudes: [] }
+                                        peakMap.set(frequency, existingPeak)
+                                    }
+                                    existingPeak.amplitudes.push(peak.value)
+                                    // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
+                                })
+                            }
+                            // console.log(fftResult)
+                            // return []
+                            /* purge too many samples */
+
+                        }
+
+                        if (samples.length > fftSize * 32) {
+                            // create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
+                            //     const enoughSamples = samples.slice(-fftSize * 32)
+                            //     const resampledSamples = src.simple(new Float32Array(enoughSamples))
+                            //     // resampledSamples.
+
+                            //     src.destroy()
+                            // })
+                            const libsamplerate = refLibsamplerate.current
+                            if (libsamplerate) {
+                                const enoughSamples = samples.slice(-fftSize * 32)
+                                // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
+                                const resampledSamples = downsample(enoughSamples, 32)
+
                                 const fft = new Fft(fftSize)
                                 const fftResult = fft.createComplexArray() as number[]
-                                fft.realTransform(fftResult, blackman_harris(enoughSamples))
-
-                                /**
-                                 * even realTransform(), the result is still complex numbers, we need 
-                                 * 1. use first half, second half are just a mirror (samplerate@48000Hz -> firsthalf@24000Hz) (fftResult is fftSize*2)
-                                 * 2. use elegant chunk() to split all complex, and sqrt them (unnecessary)
-                                 * 3. FFT result is a sum, depened on fftSize, so /fftSize to normalize it. and *2 to compensate the second half lost
-                                 * 
-                                 * the spectrum.length === fftSize / 2 
-                                 */
+                                fft.realTransform(fftResult, blackman_harris(Array.from(resampledSamples)))
                                 const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
                                     Math.hypot(real, imag) * 2 / fftSize
                                 )
-                                // console.log(spectrum.length)
-                                setSpectrum(spectrum)
-
-                                const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
-                                if (peak) {
-                                    setPeakMap((peakMap) => {
-                                        const frequency = Math.round((sampleRate / 2) * (peak.i / (fftSize / 2)))
-                                        let existingPeak = peakMap.get(frequency)
-                                        if (!existingPeak) {
-                                            existingPeak = { amplitudes: [] }
-                                            peakMap.set(frequency, existingPeak)
-                                        }
-                                        existingPeak.amplitudes.push(peak.value)
-                                        // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
-                                    })
-                                }
-                                // console.log(fftResult)
-                                return []
+                                setSpectrumLow(Array.from(spectrum))
                             }
-                        })
+                        }
+
                         // console.log(peakMap)
                         // console.log(spectrum)
                         // setSpectrum(Array.from(spectrum))
+                        if (refSamples.current.length > fftSize * 128) {
+                            refSamples.current = refSamples.current.slice(-fftSize * 64)
+                        }
                     } else {
                         console.error("Raw data should be N of f32, length should be mutiply of 4, but got", wsMessage.data)
                     }
@@ -162,6 +227,9 @@ export default function App() {
                     }
                     return spect
                 })() } />
+
+                <SpectrumUplot spectrum={ spectrum } />
+                <SpectrumLowUplot spectrum={ spectrumLow } />
             </div>
             <AudioSineWaveGenerator />
             {/* <button onClick={ () => { playSineWave(20, 1) } }>20</button>
@@ -372,7 +440,119 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 
+export const SpectrumUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
+    const [options, setOptions] = useState<uPlot.Options>(
+        useMemo(
+            () => ({
+                title: "Chart",
+                width: 1000,
+                height: 300,
+                series: [
+                    {
+                        label: "Hz",
+                    },
+                    {
+                        label: "dB",
+                        points: { show: false },
+                        // stroke: "blue",
+                        fill: "rgb(135, 183, 134)",
+                    }
+                ],
+                // plugins: [dummyPlugin()],
+                scales: {
+                    x: {
+                        time: false,
+                        distr: 3, /* uPlot.Scale.Distr.Logarithmic */
+                        log: 10,
+                        range: [20, 20_000],
+                    },
+                    y: {
+                        distr: 3,/* uPlot.Scale.Distr.Logarithmic */
+                        min: 1e-5,
+                        max: 1,
+                        // range: [1, 1e-5],
+                        range: [1e-5, 1],
+                        log: 10,
+                    },
 
+                }
+            }),
+            []
+        )
+    )
+
+
+    const data: uPlot.AlignedData = [
+        spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))),
+        spectrum,
+    ]
+    return (
+        <UPlotReact
+            key="hooks-key"
+            options={ options }
+            data={ data }
+            // target={ root }
+            onDelete={ (/* chart: uPlot */) => console.log("Deleted from hooks") }
+            onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
+        />
+    )
+}
+export const SpectrumLowUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
+    const [options, setOptions] = useState<uPlot.Options>(
+        useMemo(
+            () => ({
+                title: "Chart",
+                width: 1000,
+                height: 300,
+                series: [
+                    {
+                        label: "Hz",
+                    },
+                    {
+                        label: "dB",
+                        points: { show: false },
+                        // stroke: "blue",
+                        fill: "rgb(135, 183, 134)",
+                    }
+                ],
+                // plugins: [dummyPlugin()],
+                scales: {
+                    x: {
+                        time: false,
+                        distr: 3, /* uPlot.Scale.Distr.Logarithmic */
+                        log: 10,
+                        range: [20, 1000],
+                    },
+                    y: {
+                        distr: 3,/* uPlot.Scale.Distr.Logarithmic */
+                        min: 1e-5,
+                        max: 1,
+                        // range: [1, 1e-5],
+                        range: [1e-5, 1],
+                        log: 10,
+                    },
+
+                }
+            }),
+            []
+        )
+    )
+
+    const data: uPlot.AlignedData = [
+        spectrum.map((x, i, arr) => ((i + 1) * (1500 / 2 / arr.length))),
+        spectrum,
+    ]
+    return (
+        <UPlotReact
+            key="hooks-key"
+            options={ options }
+            data={ data }
+            // target={ root }
+            onDelete={ (/* chart: uPlot */) => console.log("Deleted from hooks") }
+            onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
+        />
+    )
+}
 
 
 

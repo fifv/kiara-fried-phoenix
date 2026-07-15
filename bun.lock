@@ -5,6 +5,7 @@
     "": {
       "name": "kiara-fried-phenix",
       "devDependencies": {
+        "@alexanderolsen/libsamplerate-js": "^2.1.2",
         "@eslint/js": "^10.0.1",
         "@faker-js/faker": "^10.4.0",
         "@floating-ui/react": "^0.27.19",
@@ -96,6 +97,8 @@
         "ts-pattern": "^5.9.0",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.60.0",
+        "uplot": "^1.6.32",
+        "uplot-react": "^1.2.4",
         "use-immer": "^0.11.0",
         "usehooks-ts": "^3.1.1",
         "vite": "^8.0.14",
@@ -108,6 +111,8 @@
     },
   },
   "packages": {
+    "@alexanderolsen/libsamplerate-js": ["@alexanderolsen/libsamplerate-js@2.1.2", "https://registry.npmmirror.com/@alexanderolsen/libsamplerate-js/-/libsamplerate-js-2.1.2.tgz", {}, "sha512-pIXQDX/DZIgz6pKInUddDd6Tnq/s2E9g4ZITkKX60kxM/nAuZcxYa/z0y/jwJbjyp/oKe+8/qHLSqMzQ18xSiQ=="],
+
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "https://registry.npmmirror.com/@alloc/quick-lru/-/quick-lru-5.2.0.tgz", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "https://registry.npmmirror.com/@babel/code-frame/-/code-frame-7.29.7.tgz", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -1509,6 +1514,10 @@
     "unplugin": ["unplugin@1.16.1", "https://registry.npmmirror.com/unplugin/-/unplugin-1.16.1.tgz", { "dependencies": { "acorn": "^8.14.0", "webpack-virtual-modules": "^0.6.2" } }, "sha512-4/u/j4FrCKdi17jaxuJA0jClGxB1AvU2hw/IuayPc4ay1XGaJs/rbb4v5WKwAjNifjmXK9PIFyuPiaK8azyR9w=="],
 
     "update-browserslist-db": ["update-browserslist-db@1.2.3", "https://registry.npmmirror.com/update-browserslist-db/-/update-browserslist-db-1.2.3.tgz", { "dependencies": { "escalade": "^3.2.0", "picocolors": "^1.1.1" }, "peerDependencies": { "browserslist": ">= 4.21.0" }, "bin": { "update-browserslist-db": "cli.js" } }, "sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w=="],
+
+    "uplot": ["uplot@1.6.32", "https://registry.npmmirror.com/uplot/-/uplot-1.6.32.tgz", {}, "sha512-KIMVnG68zvu5XXUbC4LQEPnhwOxBuLyW1AHtpm6IKTXImkbLgkMy+jabjLgSLMasNuGGzQm/ep3tOkyTxpiQIw=="],
+
+    "uplot-react": ["uplot-react@1.2.4", "https://registry.npmmirror.com/uplot-react/-/uplot-react-1.2.4.tgz", { "peerDependencies": { "react": ">=16.8.6", "uplot": "^1.6.32" } }, "sha512-mDe/mqD9KtXeHDR8llSJaUFpDcEJvYpHNS+cyUhJ2qvkbT9GPKod1BVXG+hNegRqYiV1ldsFBlI5+OKSi/yPNA=="],
 
     "uri-js": ["uri-js@4.4.1", "https://registry.npmmirror.com/uri-js/-/uri-js-4.4.1.tgz", { "dependencies": { "punycode": "^2.1.0" } }, "sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg=="],
 
