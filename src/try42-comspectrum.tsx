@@ -13,6 +13,9 @@ import "uplot/dist/uPlot.min.css"
 import { create, ConverterType } from '@alexanderolsen/libsamplerate-js'
 import UPlotReact from "uplot-react"
 
+/**
+ * FIXME: vibed, high freq will leak into low freq
+ */
 function downsample(samples: number[], scale: number): number[] {
     if (!Number.isSafeInteger(scale) || scale < 1) {
         throw new RangeError("downsample scale must be a positive integer")
@@ -47,6 +50,7 @@ export default function App() {
 
 
     const refSamples = useRef<number[]>([])
+    const refSamples2 = useRef<number[]>([])
     const refLibsamplerate = useRef<Awaited<ReturnType<typeof create>>>(null)
     useEffect(() => {
         create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
@@ -106,7 +110,6 @@ export default function App() {
                 }
 
                 if (true) {
-                    const samples = refSamples.current
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
@@ -117,6 +120,7 @@ export default function App() {
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
+                        const samples = refSamples.current
                         // console.log("current samples", samples.length, performance.now())
                         samples.push(...newSamples)
                         if (samples.length < fftSize) {
@@ -156,11 +160,13 @@ export default function App() {
                             }
                             // console.log(fftResult)
                             // return []
-                            /* purge too many samples */
-
+                            refSamples.current = []
                         }
 
-                        if (samples.length > fftSize * 32) {
+
+                        const samples2 = refSamples2.current
+                        samples2.push(...newSamples)
+                        if (samples2.length > fftSize * 32) {
                             // create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
                             //     const enoughSamples = samples.slice(-fftSize * 32)
                             //     const resampledSamples = src.simple(new Float32Array(enoughSamples))
@@ -170,7 +176,7 @@ export default function App() {
                             // })
                             const libsamplerate = refLibsamplerate.current
                             if (libsamplerate) {
-                                const enoughSamples = samples.slice(-fftSize * 32)
+                                const enoughSamples = samples2.slice(-fftSize * 32)
                                 // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
                                 const resampledSamples = downsample(enoughSamples, 32)
 
@@ -182,14 +188,17 @@ export default function App() {
                                 )
                                 setSpectrumLow(Array.from(spectrum))
                             }
+                            // refSamples2.current = []
                         }
 
                         // console.log(peakMap)
                         // console.log(spectrum)
                         // setSpectrum(Array.from(spectrum))
-                        if (refSamples.current.length > fftSize * 128) {
-                            refSamples.current = refSamples.current.slice(-fftSize * 64)
-                        }
+
+                        /* purge too many samples */
+                        // if (refSamples.current.length > fftSize * 128) {
+                        //     refSamples.current = refSamples.current.slice(-fftSize * 64)
+                        // }
                     } else {
                         console.error("Raw data should be N of f32, length should be mutiply of 4, but got", wsMessage.data)
                     }
@@ -228,7 +237,7 @@ export default function App() {
                     return spect
                 })() } />
 
-                <SpectrumUplot spectrum={ spectrum } />
+                <SpectrumUplot spectrum={ spectrum } spectrumLow={ spectrumLow } />
                 <SpectrumLowUplot spectrum={ spectrumLow } />
             </div>
             <AudioSineWaveGenerator />
@@ -440,12 +449,12 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 
-export const SpectrumUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
+export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[] }> = ({ spectrum, spectrumLow }) => {
     const [options, setOptions] = useState<uPlot.Options>(
         useMemo(
             () => ({
                 title: "Chart",
-                width: 1000,
+                width: 1800,
                 height: 300,
                 series: [
                     {
@@ -483,8 +492,10 @@ export const SpectrumUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) =>
 
 
     const data: uPlot.AlignedData = [
-        spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))),
-        spectrum,
+        [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length)))],
+        [...spectrum],
+        // [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
+        // [...spectrumLow, ...spectrum.slice(750 / (48000 / 2 / spectrum.length))],
     ]
     return (
         <UPlotReact
