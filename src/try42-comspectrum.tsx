@@ -76,8 +76,8 @@ export default function App() {
                     if (wsMessage.data.payload.length % 4 === 0) {
                         const sampleRate = 48000
                         // const fftSize = 8192
-                        // const fftSize = 4096
-                        const fftSize = 512
+                        const fftSize = 4096
+                        // const fftSize = 512
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
@@ -361,7 +361,7 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
     return (
         <canvas
             ref={ canvasRef }
-            width={ 600 }
+            width={ 1000 }
             height={ 200 }
             style={ { background: '#111827', borderRadius: '8px', width: '100%', height: 'auto' } }
         />

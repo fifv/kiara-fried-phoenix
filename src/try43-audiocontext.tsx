@@ -121,6 +121,11 @@ export default function App() {
             <div className={ clsx('font-mono',) }>
                 Gain: { (gain).toFixed(10) } ({ (Math.log10(gain) * 20).toFixed(2) }dB)
             </div>
+            <button className={ clsx(
+                // !isActive &&'bg-red-300!',
+            ) } onClick={ () => {
+                setGain(1e-1)
+            } }>-20dB</button>
         </div>
     )
 }
