@@ -51,12 +51,6 @@ export default function App() {
 
     const refSamples = useRef<number[]>([])
     const refSamples2 = useRef<number[]>([])
-    const refLibsamplerate = useRef<Awaited<ReturnType<typeof create>>>(null)
-    useEffect(() => {
-        create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
-            refLibsamplerate.current = src
-        })
-    }, [])
 
     const { sendJsonMessage, readyState, getWebSocket, } = useWebSocket<WsRxMessage | null>(
         `ws://${location.hostname}:3304/wscom`,
@@ -85,6 +79,8 @@ export default function App() {
 
 
     useEffect(() => {
+
+
         const handleWs = (e: MessageEvent) => {
             const wsMessage = JSON.parse(e.data) as WsRxMessage
 
@@ -147,16 +143,22 @@ export default function App() {
 
                             const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
                             if (peak) {
-                                setPeakMap((peakMap) => {
-                                    const frequency = Math.round((sampleRate / 2) * (peak.i / (fftSize / 2)))
-                                    let existingPeak = peakMap.get(frequency)
-                                    if (!existingPeak) {
-                                        existingPeak = { amplitudes: [] }
-                                        peakMap.set(frequency, existingPeak)
-                                    }
-                                    existingPeak.amplitudes.push(peak.value)
-                                    // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
-                                })
+                                const safePeak = peak.value > 1e-4 ? peak : null
+                                if (safePeak) {
+                                    setPeakMap((peakMap) => {
+                                        const frequency = Math.round((sampleRate / 2) * (safePeak.i / (fftSize / 2)))
+                                        let existingPeak = peakMap.get(frequency)
+                                        if (!existingPeak) {
+                                            existingPeak = { amplitudes: [] }
+                                            peakMap.set(frequency, existingPeak)
+                                        }
+                                        existingPeak.amplitudes.push(safePeak.value)
+                                        if (existingPeak.amplitudes.length > 32) {
+                                            existingPeak.amplitudes = existingPeak.amplitudes.slice(16)
+                                        }
+                                        // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
+                                    })
+                                }
                             }
                             // console.log(fftResult)
                             // return []
@@ -174,20 +176,38 @@ export default function App() {
 
                             //     src.destroy()
                             // })
-                            const libsamplerate = refLibsamplerate.current
-                            if (libsamplerate) {
-                                const enoughSamples = samples2.slice(-fftSize * 32)
-                                // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
-                                const resampledSamples = downsample(enoughSamples, 32)
 
+                            const enoughSamples = samples2.slice(-fftSize * 32)
+                            // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
+                            // const resampledSamples = downsample(enoughSamples, 32)
+
+                            const offlineCtx = new OfflineAudioContext(1, fftSize * 8, 48000 / 4)
+                            const lowpassFilter = new BiquadFilterNode(offlineCtx, {
+                                type: 'lowpass',
+                                frequency: 48000 / 32 / 2,
+                            })
+                            const audioBufferSource = offlineCtx.createBufferSource()
+                            const audioBuffer = offlineCtx.createBuffer(1, fftSize * 32, 48000)
+                            audioBuffer.copyToChannel(new Float32Array(enoughSamples), 0)
+                            audioBufferSource.buffer = audioBuffer
+                            audioBufferSource.connect(lowpassFilter)
+                            lowpassFilter.connect(offlineCtx.destination)
+                            audioBufferSource.start()
+                            offlineCtx.startRendering().then((resampledBuffer) => {
+                                // const resampledSamples = Array.from(resampledBuffer.getChannelData(0))
+                                const resampledSamples = chunk(Array.from(resampledBuffer.getChannelData(0)), 8).map(x => x[0])
+                                // console.log(resampledSamples)
+                                // console.log(resampledSamples)
                                 const fft = new Fft(fftSize)
                                 const fftResult = fft.createComplexArray() as number[]
-                                fft.realTransform(fftResult, blackman_harris(Array.from(resampledSamples)))
+                                fft.realTransform(fftResult, blackman_harris((resampledSamples)))
                                 const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
                                     Math.hypot(real, imag) * 2 / fftSize
                                 )
                                 setSpectrumLow(Array.from(spectrum))
-                            }
+                            })
+
+
                             // refSamples2.current = []
                         }
 
@@ -216,7 +236,7 @@ export default function App() {
             }
         }
         /* since we use addEventListener now, which is safe an fast, we can ignore the chance that effect run too much */
-    }, [getWebSocket, peakMap, readyState, setPeakMap])
+    }, [getWebSocket, readyState, setPeakMap])
 
     return (
         <div>
@@ -228,16 +248,16 @@ export default function App() {
             ) }>
 
                 <SpectrumCanvas spectrum={ spectrum } />
-                <SpectrumCanvas spectrum={ (() => {
+                {/* <SpectrumCanvas spectrum={ (() => {
                     // console.log(peakMap)
                     const spect = new Array(spectrum.length).fill(0)
                     for (const [frequency, value] of peakMap) {
                         spect[Math.round(frequency / (48000 / 2) * spectrum.length)] = mean(value.amplitudes)
                     }
                     return spect
-                })() } />
+                })() } /> */}
 
-                <SpectrumUplot spectrum={ spectrum } spectrumLow={ spectrumLow } />
+                <SpectrumUplot spectrum={ spectrum } spectrumLow={ spectrumLow } peakMap={ peakMap } />
                 <SpectrumLowUplot spectrum={ spectrumLow } />
             </div>
             <AudioSineWaveGenerator />
@@ -449,7 +469,7 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 
-export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[] }> = ({ spectrum, spectrumLow }) => {
+export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[], peakMap: FrequencyPeakMap }> = ({ spectrum, spectrumLow, peakMap }) => {
     const [options, setOptions] = useState<uPlot.Options>(
         useMemo(
             () => ({
@@ -459,12 +479,34 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
                 series: [
                     {
                         label: "Hz",
+                        value: (self, rawValue, seriesIdx, idx) => {
+                            if (rawValue != null) {
+                                return rawValue.toFixed(1).padStart(6, ' ')
+                            } else {
+                                return '--'
+                            }
+                        },
                     },
                     {
                         label: "dB",
                         points: { show: false },
-                        // stroke: "blue",
+                        stroke: "rgb(135, 183, 134)",
                         fill: "rgb(135, 183, 134)",
+                        value: (self, rawValue, seriesIdx, idx) => {
+                            return rawValue <= 1e-6
+                                ? "-∞ dB"
+                                : `${Math.round(20 * Math.log10(rawValue))} dB`
+                        },
+                    },
+                    {
+                        label: "dB(Peak)",
+                        points: { show: false },
+                        stroke: "cyan",
+                        value: (self, rawValue, seriesIdx, idx) => {
+                            return rawValue <= 1e-6
+                                ? "-∞ dB"
+                                : `${Math.round(20 * Math.log10(rawValue))} dB`
+                        }
                     }
                 ],
                 // plugins: [dummyPlugin()],
@@ -484,7 +526,44 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
                         log: 10,
                     },
 
-                }
+                },
+                axes: [
+                    // X-Axis (Index 0)
+                    {
+                        stroke: "#c7d2fe",       // Color of the axis line and text labels (e.g., light indigo)
+                        grid: {
+                            stroke: "rgba(255, 255, 255, 0.05)", // Color of vertical gridlines (semi-transparent white)
+                            width: 1,
+                        },
+                        ticks: {
+                            stroke: "rgba(255, 255, 255, 0.2)", // Color of the small tick ticks
+                            width: 1,
+                        }
+                    },
+                    // Y-Axis (Index 1)
+                    {
+                        stroke: "#c7d2fe",       // Color of the axis line and text labels
+                        grid: {
+                            stroke: "rgba(255, 255, 255, 0.05)", // Color of horizontal gridlines
+                            width: 1,
+                        },
+                        ticks: {
+                            stroke: "rgba(255, 255, 255, 0.2)",
+                            width: 1,
+                        },
+                        values: (self, ticks) => ticks.map(v => {
+                            /* v is null if uplot don't want render inbetween */
+                            if (v != null) {
+                                return v <= 0
+                                    ? "-∞ dB"
+                                    : `${Math.round(20 * Math.log10(v))} dB`
+                                // return `wtf`
+                            } else {
+                                return ''
+                            }
+                        }),
+                    }
+                ],
             }),
             []
         )
@@ -494,6 +573,13 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
     const data: uPlot.AlignedData = [
         [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length)))],
         [...spectrum],
+        (() => {
+            const spect = new Array<number | null>(spectrum.length).fill(null)
+            for (const [frequency, value] of peakMap) {
+                spect[Math.round(frequency / (48000 / 2) * spectrum.length)] = mean(value.amplitudes)
+            }
+            return spect
+        })(),
         // [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
         // [...spectrumLow, ...spectrum.slice(750 / (48000 / 2 / spectrum.length))],
     ]

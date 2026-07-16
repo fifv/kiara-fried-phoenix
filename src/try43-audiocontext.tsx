@@ -79,53 +79,79 @@ export default function App() {
 
     return (
         <div>
-            <button className={ clsx(
-                isActive && 'bg-red-400!',
-                // !isActive &&'bg-red-300!',
-            ) } onClick={ () => {
-                setIsActive((x) => (!x))
-            } }>{ isActive ? "Stop" : "Play" }</button>
+            <div className={ clsx(
+                'flex items-center justify-center gap-4',
+            ) }>
+                <div>
+                    <button className={ clsx(
+                        isActive && 'bg-red-400!', 'w-48'
+                        // !isActive &&'bg-red-300!',
+                    ) } onClick={ () => {
+                        setIsActive((x) => (!x))
+                    } }>{ isActive ? "Stop" : "Play" }</button>
+                    <button className={ clsx() } onClick={ () => {
+                        setGain(1e-1)
+                    } }>-20dB</button>
+                    <button className={ clsx() } onClick={ () => {
+                        let count = 0
+                        const si = setInterval(() => {
+                            if (count < 1024) {
+                                setFrequency((20 * ((20000 / 20) ** (1 - (1 - (count / 1024)) ** 2))))
+                                count++
+                            } else {
+                                clearInterval(si)
+                            }
+                        }, 20)
+                    } }>Sweep</button>
+                </div>
+
+                <div>
+                    <div className={ clsx('font-mono',) }>
+                        Freq: { (frequency).toFixed(3) }
+                    </div>
+                    <div className={ clsx('font-mono',) }>
+                        Gain: { (gain).toFixed(10) } ({ (Math.log10(gain) * 20).toFixed(2) }dB)
+                    </div>
+                </div>
+
+            </div>
+
+
 
             <div className={ clsx(
-                'mx-12 w-[80vw]',
+                'mx-12',
             ) }>
-                { (() => {
-                    const min = 20
-                    const max = 20000
-                    return <BasicRange value={ rangeToLogUnit(frequency, min, max) } setValue={ (x) => setFrequency(logUnitToRange(x, min, max)) } />
-                })() }
+
+                <div className={ clsx(
+                ) }>
+                    { (() => {
+                        const min = 20
+                        const max = 20000
+                        return <BasicRange value={ rangeToLogUnit(frequency, min, max) } setValue={ (x) => setFrequency(logUnitToRange(x, min, max)) } />
+                    })() }
+                </div>
+                <div className={ clsx(
+                ) }>
+                    { (() => {
+                        /**
+                         * 10^-5 == -100dB
+                         * 10^-4 == -80dB
+                         */
+                        const min = 1e-4
+                        const max = 1
+                        return <BasicRange value={ rangeToLogUnit(gain, min, max) } setValue={ (x) => setGain(logUnitToRange(x, min, max)) } />
+                    })() }
+                </div>
+                <div className={ clsx(
+                ) }>
+                    { (() => {
+                        return <BasicRange value={ gain } setValue={ (x) => setGain(x) } />
+                    })() }
+                </div>
             </div>
-            <div className={ clsx(
-                'mx-12 w-[80vw]',
-            ) }>
-                { (() => {
-                    /**
-                     * 10^-5 == -100dB
-                     * 10^-4 == -80dB
-                     */
-                    const min = 1e-4
-                    const max = 1
-                    return <BasicRange value={ rangeToLogUnit(gain, min, max) } setValue={ (x) => setGain(logUnitToRange(x, min, max)) } />
-                })() }
-            </div>
-            <div className={ clsx(
-                'mx-12 w-[80vw]',
-            ) }>
-                { (() => {
-                    return <BasicRange value={ gain } setValue={ (x) => setGain(x) } />
-                })() }
-            </div>
-            <div className={ clsx('font-mono mt-12',) }>
-                Freq: { (frequency).toFixed(3) }
-            </div>
-            <div className={ clsx('font-mono',) }>
-                Gain: { (gain).toFixed(10) } ({ (Math.log10(gain) * 20).toFixed(2) }dB)
-            </div>
-            <button className={ clsx(
-                // !isActive &&'bg-red-300!',
-            ) } onClick={ () => {
-                setGain(1e-1)
-            } }>-20dB</button>
+
+
+            <div className="mb-32"></div>
         </div>
     )
 }
@@ -147,7 +173,9 @@ const BasicRange: React.FC<{ value: number, setValue: (value: number) => void, n
             style={ {
                 display: "flex",
                 justifyContent: "center",
+                alignItems: "center",
                 flexWrap: "wrap",
+                gap: "12px",
             } }
         >
             <Range
@@ -164,7 +192,7 @@ const BasicRange: React.FC<{ value: number, setValue: (value: number) => void, n
                             ...props.style,
                             height: "72px",
                             display: "flex",
-                            width: "100%",
+                            width: "80%",
                         } }
                     // className="w-full h-18 flex"
                     >
