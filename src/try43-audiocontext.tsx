@@ -100,6 +100,7 @@ export default function App() {
                                 count++
                             } else {
                                 clearInterval(si)
+                                setIsActive(false)
                             }
                         }, 20)
                     } }>Sweep</button>

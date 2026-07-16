@@ -113,11 +113,13 @@ export default function App() {
                         // const fftSize = 8192
                         // const fftSize = 4096
                         const fftSize = 1024
+                        // const fftSize = 2048
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
                         const samples = refSamples.current
                         // console.log("current samples", samples.length, performance.now())
+                        // console.log("newSamples", newSamples)
                         samples.push(...newSamples)
                         if (samples.length < fftSize) {
                             /*  */
@@ -125,7 +127,11 @@ export default function App() {
                             const enoughSamples = samples.slice(-fftSize)
                             const fft = new Fft(fftSize)
                             const fftResult = fft.createComplexArray() as number[]
+                            /* blackman_harris will cause ~ -8.91dB reduction */
                             fft.realTransform(fftResult, blackman_harris(enoughSamples))
+                            /* divide by this after hypot compensate the amplitude *lost */
+                            const coherentGain = blackman_harris(new Array(fftSize).fill(1)).reduce((sum, value) => sum + value, 0) / fftSize
+
 
                             /**
                              * even realTransform(), the result is still complex numbers, we need 
@@ -136,7 +142,7 @@ export default function App() {
                              * the spectrum.length === fftSize / 2 
                              */
                             const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
-                                Math.hypot(real, imag) * 2 / fftSize
+                                Math.hypot(real, imag) * 2 / (fftSize * coherentGain)
                             )
                             // console.log(spectrum.length)
                             setSpectrum(spectrum)
@@ -493,9 +499,10 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
                         stroke: "rgb(135, 183, 134)",
                         fill: "rgb(135, 183, 134)",
                         value: (self, rawValue, seriesIdx, idx) => {
+                            // console.log(rawValue)
                             return rawValue <= 1e-6
                                 ? "-∞ dB"
-                                : `${Math.round(20 * Math.log10(rawValue))} dB`
+                                : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
                         },
                     },
                     {
@@ -505,7 +512,7 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
                         value: (self, rawValue, seriesIdx, idx) => {
                             return rawValue <= 1e-6
                                 ? "-∞ dB"
-                                : `${Math.round(20 * Math.log10(rawValue))} dB`
+                                : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
                         }
                     }
                 ],
