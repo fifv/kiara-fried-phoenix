@@ -52,6 +52,8 @@ export default function App() {
     const refSamples = useRef<number[]>([])
     const refSamples2 = useRef<number[]>([])
 
+    const refPendingRenders = useRef(0)
+
     const { sendJsonMessage, readyState, getWebSocket, } = useWebSocket<WsRxMessage | null>(
         `ws://${location.hostname}:3304/wscom`,
         {
@@ -168,7 +170,12 @@ export default function App() {
                             }
                             // console.log(fftResult)
                             // return []
+                            /* comment out this line to frequent render with part of old data */
                             refSamples.current = []
+                        }
+                        /* purge too many samples */
+                        if (refSamples.current.length > fftSize * 128) {
+                            refSamples.current = refSamples.current.slice(-fftSize * 64)
                         }
 
 
@@ -199,6 +206,11 @@ export default function App() {
                             audioBufferSource.connect(lowpassFilter)
                             lowpassFilter.connect(offlineCtx.destination)
                             audioBufferSource.start()
+
+                            refPendingRenders.current++
+                            // console.log("pending renders:", refPendingRenders.current)
+
+
                             offlineCtx.startRendering().then((resampledBuffer) => {
                                 // const resampledSamples = Array.from(resampledBuffer.getChannelData(0))
                                 const resampledSamples = chunk(Array.from(resampledBuffer.getChannelData(0)), 8).map(x => x[0])
@@ -211,20 +223,22 @@ export default function App() {
                                     Math.hypot(real, imag) * 2 / fftSize
                                 )
                                 setSpectrumLow(Array.from(spectrum))
+                            }).finally(() => {
+                                refPendingRenders.current--
                             })
 
 
                             // refSamples2.current = []
+                        }
+                        if (refSamples2.current.length > fftSize * 48) {
+                            refSamples2.current = refSamples2.current.slice(-fftSize * 32)
                         }
 
                         // console.log(peakMap)
                         // console.log(spectrum)
                         // setSpectrum(Array.from(spectrum))
 
-                        /* purge too many samples */
-                        // if (refSamples.current.length > fftSize * 128) {
-                        //     refSamples.current = refSamples.current.slice(-fftSize * 64)
-                        // }
+
                     } else {
                         console.error("Raw data should be N of f32, length should be mutiply of 4, but got", wsMessage.data)
                     }

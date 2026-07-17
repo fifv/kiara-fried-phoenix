@@ -47,6 +47,11 @@ export default function App() {
                 })
                 refOscillator.current = null
                 refGainNode.current = null
+                audioCtx.close()
+            }
+        } else {
+            return () => {
+                audioCtx.close()
             }
         }
 
