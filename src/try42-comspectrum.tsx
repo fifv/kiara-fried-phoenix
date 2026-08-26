@@ -7,7 +7,7 @@ import { useImmer } from "use-immer"
 import { enableMapSet } from 'immer'
 
 import AudioSineWaveGenerator from './try43-audiocontext'
-import { chunk, maxBy, mean } from "es-toolkit"
+import { chunk, maxBy, mean, range } from "es-toolkit"
 import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 import { create, ConverterType } from '@alexanderolsen/libsamplerate-js'
@@ -47,6 +47,7 @@ export default function App() {
     const [spectrumLow, setSpectrumLow] = useState<number[]>([])
     // const [samples, setSamples] = useState<number[]>([])
     const [peakMap, setPeakMap] = useImmer<FrequencyPeakMap>(new Map)
+    const [isForeground, setIsForeground] = useState(true)
 
 
     const refSamples = useRef<number[]>([])
@@ -114,8 +115,8 @@ export default function App() {
                         const sampleRate = 48000
                         // const fftSize = 8192
                         // const fftSize = 4096
-                        const fftSize = 1024
-                        // const fftSize = 2048
+                        // const fftSize = 1024
+                        const fftSize = 2048
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
 
@@ -258,17 +259,29 @@ export default function App() {
         /* since we use addEventListener now, which is safe an fast, we can ignore the chance that effect run too much */
     }, [getWebSocket, readyState, setPeakMap])
 
+    useEffect(() => {
+        function handleVisibilityChange() {
+            setIsForeground(!document.hidden)
+        }
+        document.addEventListener("visibilitychange", handleVisibilityChange)
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange)
+        }
+    }, [])
+
     return (
         <div>
             {
                 // spectrum.map((v) => <div>{ v }</div>)
             }
-            <div className={ clsx(
-                'm-8',
-            ) }>
+            {
+                isForeground &&
+                <div className={ clsx(
+                    'm-8',
+                ) }>
 
-                <SpectrumCanvas spectrum={ spectrum } />
-                {/* <SpectrumCanvas spectrum={ (() => {
+                    {/* <SpectrumCanvas spectrum={ spectrum } /> */}
+                    {/* <SpectrumCanvas spectrum={ (() => {
                     // console.log(peakMap)
                     const spect = new Array(spectrum.length).fill(0)
                     for (const [frequency, value] of peakMap) {
@@ -277,9 +290,10 @@ export default function App() {
                     return spect
                 })() } /> */}
 
-                <SpectrumUplot spectrum={ spectrum } spectrumLow={ spectrumLow } peakMap={ peakMap } />
-                <SpectrumLowUplot spectrum={ spectrumLow } />
-            </div>
+                    <SpectrumUplot spectrum={ spectrum } spectrumLow={ [] } peakMap={ peakMap } />
+                    {/* <SpectrumLowUplot spectrum={ spectrumLow } /> */}
+                </div>
+            }
             <AudioSineWaveGenerator />
             {/* <button onClick={ () => { playSineWave(20, 1) } }>20</button>
             <button onClick={ () => { playSineWave(40, 1) } }>40</button>
@@ -490,104 +504,104 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[], peakMap: FrequencyPeakMap }> = ({ spectrum, spectrumLow, peakMap }) => {
-    const [options, setOptions] = useState<uPlot.Options>(
-        useMemo(
-            () => ({
-                title: "Chart",
-                width: 1800,
-                height: 300,
-                series: [
-                    {
-                        label: "Hz",
-                        value: (self, rawValue, seriesIdx, idx) => {
-                            if (rawValue != null) {
-                                return rawValue.toFixed(1).padStart(6, ' ')
-                            } else {
-                                return '--'
-                            }
-                        },
-                    },
-                    {
-                        label: "dB",
-                        points: { show: false },
-                        stroke: "rgb(135, 183, 134)",
-                        fill: "rgb(135, 183, 134)",
-                        value: (self, rawValue, seriesIdx, idx) => {
-                            // console.log(rawValue)
-                            return rawValue <= 1e-6
-                                ? "-∞ dB"
-                                : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
-                        },
-                    },
-                    {
-                        label: "dB(Peak)",
-                        points: { show: false },
-                        stroke: "cyan",
-                        value: (self, rawValue, seriesIdx, idx) => {
-                            return rawValue <= 1e-6
-                                ? "-∞ dB"
-                                : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
+    const refDivRef = useRef<HTMLDivElement>(null)
+    const [options, setOptions] = useImmer<uPlot.Options>(
+        () => ({
+            title: "Chart",
+            // width: 1800,
+            width: 300,
+            height: 300,
+            series: [
+                {
+                    label: "Hz",
+                    value: (self, rawValue, seriesIdx, idx) => {
+                        if (rawValue != null) {
+                            return rawValue.toFixed(1).padStart(6, ' ')
+                        } else {
+                            return '--'
                         }
-                    }
-                ],
-                // plugins: [dummyPlugin()],
-                scales: {
-                    x: {
-                        time: false,
-                        distr: 3, /* uPlot.Scale.Distr.Logarithmic */
-                        log: 10,
-                        range: [20, 20_000],
                     },
-                    y: {
-                        distr: 3,/* uPlot.Scale.Distr.Logarithmic */
-                        min: 1e-5,
-                        max: 1,
-                        // range: [1, 1e-5],
-                        range: [1e-5, 1],
-                        log: 10,
-                    },
-
                 },
-                axes: [
-                    // X-Axis (Index 0)
-                    {
-                        stroke: "#c7d2fe",       // Color of the axis line and text labels (e.g., light indigo)
-                        grid: {
-                            stroke: "rgba(255, 255, 255, 0.05)", // Color of vertical gridlines (semi-transparent white)
-                            width: 1,
-                        },
-                        ticks: {
-                            stroke: "rgba(255, 255, 255, 0.2)", // Color of the small tick ticks
-                            width: 1,
-                        }
+                {
+                    label: "dB",
+                    points: { show: false },
+                    stroke: "rgb(135, 183, 134)",
+                    fill: "rgb(135, 183, 134)",
+                    value: (self, rawValue, seriesIdx, idx) => {
+                        // console.log(rawValue)
+                        return rawValue <= 1e-6
+                            ? "-∞ dB"
+                            : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
                     },
-                    // Y-Axis (Index 1)
-                    {
-                        stroke: "#c7d2fe",       // Color of the axis line and text labels
-                        grid: {
-                            stroke: "rgba(255, 255, 255, 0.05)", // Color of horizontal gridlines
-                            width: 1,
-                        },
-                        ticks: {
-                            stroke: "rgba(255, 255, 255, 0.2)",
-                            width: 1,
-                        },
-                        values: (self, ticks) => ticks.map(v => {
-                            /* v is null if uplot don't want render inbetween */
-                            if (v != null) {
-                                return v <= 0
-                                    ? "-∞ dB"
-                                    : `${Math.round(20 * Math.log10(v))} dB`
-                                // return `wtf`
-                            } else {
-                                return ''
-                            }
-                        }),
+                },
+                {
+                    label: "dB(Peak)",
+                    points: { show: false },
+                    stroke: "cyan",
+                    value: (self, rawValue, seriesIdx, idx) => {
+                        return rawValue <= 1e-6
+                            ? "-∞ dB"
+                            : `${(20 * Math.log10(rawValue)).toFixed(2)} dB`
                     }
-                ],
-            }),
-            []
-        )
+                }
+            ],
+            // plugins: [dummyPlugin()],
+            scales: {
+                x: {
+                    time: false,
+                    distr: 3, /* uPlot.Scale.Distr.Logarithmic */
+                    log: 10,
+                    range: [20, 20_000],
+                },
+                y: {
+                    distr: 3,/* uPlot.Scale.Distr.Logarithmic */
+                    min: 1e-5,
+                    max: 1,
+                    // range: [1, 1e-5],
+                    range: [1e-5, 1],
+                    log: 10,
+                },
+
+            },
+            axes: [
+                // X-Axis (Index 0)
+                {
+                    stroke: "#c7d2fe",       // Color of the axis line and text labels (e.g., light indigo)
+                    grid: {
+                        stroke: "rgba(255, 255, 255, 0.05)", // Color of vertical gridlines (semi-transparent white)
+                        width: 1,
+                    },
+                    ticks: {
+                        stroke: "rgba(255, 255, 255, 0.2)", // Color of the small tick ticks
+                        width: 1,
+                    }
+                },
+                // Y-Axis (Index 1)
+                {
+                    stroke: "#c7d2fe",       // Color of the axis line and text labels
+                    grid: {
+                        stroke: "rgba(255, 255, 255, 0.05)", // Color of horizontal gridlines
+                        width: 1,
+                    },
+                    ticks: {
+                        stroke: "rgba(255, 255, 255, 0.2)",
+                        width: 1,
+                    },
+                    values: (self, ticks) => ticks.map(v => {
+                        /* v is null if uplot don't want render inbetween */
+                        if (v != null) {
+                            return v <= 0
+                                ? "-∞ dB"
+                                : `${Math.round(20 * Math.log10(v))} dB`
+                            // return `wtf`
+                        } else {
+                            return ''
+                        }
+                    }),
+                }
+            ],
+        })
+
     )
 
 
@@ -601,18 +615,36 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
             }
             return spect
         })(),
-        // [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
+        [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
         // [...spectrumLow, ...spectrum.slice(750 / (48000 / 2 / spectrum.length))],
     ]
+    useEffect(() => {
+        const observer = new ResizeObserver(([entry]) => {
+            // console.log('new width:', entry.contentBoxSize[0].inlineSize)
+            setOptions((draft) => {
+                draft.width = entry.contentBoxSize[0].inlineSize
+            })
+        })
+        if (refDivRef.current) {
+            observer.observe(refDivRef.current)
+        }
+        return () => {
+            observer.disconnect()
+        }
+    }, [setOptions])
     return (
-        <UPlotReact
-            key="hooks-key"
-            options={ options }
-            data={ data }
-            // target={ root }
-            onDelete={ (/* chart: uPlot */) => console.log("Deleted from hooks") }
-            onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
-        />
+        <div ref={ refDivRef } className={ clsx(
+            'UplotWrapper w-full',
+        ) }>
+            <UPlotReact
+                key="hooks-key"
+                options={ options }
+                data={ data }
+                // target={ root }
+                onDelete={ (/* chart: uPlot */) => console.log("Deleted from hooks") }
+                onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
+            />
+        </div>
     )
 }
 export const SpectrumLowUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
