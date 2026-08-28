@@ -80,6 +80,7 @@ const appTitlesAndComponents: [string, PreloadableComponent<() => ReactNode>][] 
     ['qbit-batch-mv', lazyWithPreload(() => import('./tools/qbit-batch-mv')),],
     ['checkout-calculator', lazyWithPreload(() => import('./tools/checkout-calculator')),],
     ['fast-timer', lazyWithPreload(() => import('./tools/fast-timer')),],
+    ['ws-can-servo', lazyWithPreload(() => import('./tools/ws-can-servo')),],
     ['Slider', lazyWithPreload(() => import('./components/Slider')),],
     ['vanilla-01-css-absoluteincss', lazyWithPreload(() => import('./try-vanilla/try01-css-absoluteincss')),],
     ['vanilla-02-css-3dtransform', lazyWithPreload(() => import('./try-vanilla/try02-css-3dtransform')),],

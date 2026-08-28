@@ -11,7 +11,7 @@ export default function App() {
             console.log(support.supported)
         }
         func()
-
+        
         const decoder = new VideoDecoder({
             output(frame) {
                 console.log(frame)
