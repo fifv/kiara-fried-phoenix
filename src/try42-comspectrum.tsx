@@ -112,6 +112,7 @@ export default function App() {
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
                         const sampleRate = 48000
+                        // const sampleRate = 96000
                         // const fftSize = 8192
                         // const fftSize = 4096
                         const fftSize = 1024
