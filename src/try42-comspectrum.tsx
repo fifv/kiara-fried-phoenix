@@ -105,6 +105,12 @@ export default function App() {
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
+                        const sampleRate = 48000
+                        // const sampleRate = 96000
+                        // const fftSize = 8192
+                        // const fftSize = 4096
+                        // const fftSize = 1024
+                        const fftSize = 2048
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
                         // console.log("current samples", samples.length, performance.now())
