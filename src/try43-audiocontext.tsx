@@ -2,15 +2,47 @@ import { clsx } from "clsx"
 import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { getTrackBackground, Range } from "react-range"
 export default function App() {
+    const [masterGain, setMasterGain] = useState(0.01)
+    return (
+        <div>
+            <div className={ clsx(
+            ) }>
+                { (() => {
+                    /**
+                     * 10^-5 == -100dB
+                     * 10^-4 == -80dB
+                     */
+                    const min = 1e-4
+                    const max = 1
+                    return <BasicRange value={ rangeToLogUnit(masterGain, min, max) } setValue={ (x) => setMasterGain(logUnitToRange(x, min, max)) } />
+                })() }
+            </div>
+
+            <SineWaveGenerator volume={ masterGain }></SineWaveGenerator>
+            <SineWaveGenerator volume={ masterGain }></SineWaveGenerator>
+            <SineWaveGenerator volume={ masterGain }></SineWaveGenerator>
+        </div>
+    )
+}
+
+function SineWaveGenerator({ volume }: {
+    volume?: number
+}) {
     const [frequency, setFrequency] = useState(1000)
-    const [gain, setGain] = useState(0.01)
+    const [gain_, setGain] = useState(0.01)
     const [isActive, setIsActive] = useState(false)
+    const [isWantSeperateVolumeControl, setIsWantSeperateVolumeControl] = useState(false)
+
 
     const refOscillator = useRef<OscillatorNode>(null)
     const refGainNode = useRef<GainNode>(null)
 
+    const isSeperateVolumeControl = isWantSeperateVolumeControl || (volume == null)
+    const gain = isSeperateVolumeControl ? gain_ : volume
+
     const getFrequency = useEffectEvent(() => frequency)
     const getGain = useEffectEvent(() => gain)
+
 
     useEffect(() => {
         const audioCtx = new AudioContext()
@@ -71,15 +103,7 @@ export default function App() {
         }
     }, [gain])
 
-    /**
-     * map 20~20000 -> 0.0~1.0, with logrithm (i.e. change slow at first, then faster at end)
-     */
-    function rangeToLogUnit(rawValue: number, rawValueMin: number, rawValueMax: number) {
-        return Math.log(rawValue / rawValueMin) / Math.log(rawValueMax / rawValueMin)
-    }
-    function logUnitToRange(unitValue: number, rawValueMin: number, rawValueMax: number) {
-        return rawValueMin * (rawValueMax / rawValueMin) ** (unitValue)
-    }
+
 
 
     return (
@@ -95,9 +119,6 @@ export default function App() {
                         setIsActive((x) => (!x))
                     } }>{ isActive ? "Stop" : "Play" }</button>
                     <button className={ clsx() } onClick={ () => {
-                        setGain(1e-1)
-                    } }>-20dB</button>
-                    <button className={ clsx() } onClick={ () => {
                         let count = 0
                         const si = setInterval(() => {
                             if (count < 1024) {
@@ -109,6 +130,26 @@ export default function App() {
                             }
                         }, 20)
                     } }>Sweep</button>
+                    {
+                        volume != null &&
+                        <button className={ clsx() } onClick={ () => {
+                            setIsWantSeperateVolumeControl((x) => (!x))
+                        } }>Volume { isWantSeperateVolumeControl }</button>
+                    }
+
+                    {
+                        isSeperateVolumeControl && <>
+                            <button className={ clsx() } onClick={ () => {
+                                setGain(10 ** (-40 / 20))
+                            } }>-40dB</button>
+                            <button className={ clsx() } onClick={ () => {
+                                setGain(10 ** (-30 / 20))
+                            } }>-30dB</button>
+                            <button className={ clsx() } onClick={ () => {
+                                setGain(10 ** (-20 / 20))
+                            } }>-20dB</button>
+                        </>
+                    }
                 </div>
 
                 <div>
@@ -136,32 +177,45 @@ export default function App() {
                         return <BasicRange value={ rangeToLogUnit(frequency, min, max) } setValue={ (x) => setFrequency(logUnitToRange(x, min, max)) } />
                     })() }
                 </div>
-                <div className={ clsx(
-                ) }>
-                    { (() => {
-                        /**
-                         * 10^-5 == -100dB
-                         * 10^-4 == -80dB
-                         */
-                        const min = 1e-4
-                        const max = 1
-                        return <BasicRange value={ rangeToLogUnit(gain, min, max) } setValue={ (x) => setGain(logUnitToRange(x, min, max)) } />
-                    })() }
-                </div>
-                <div className={ clsx(
+                {
+                    isSeperateVolumeControl &&
+                    <div className={ clsx(
+                    ) }>
+                        { (() => {
+                            /**
+                             * 10^-5 == -100dB
+                             * 10^-4 == -80dB
+                             */
+                            const min = 1e-4
+                            const max = 1
+                            return <BasicRange value={ rangeToLogUnit(gain, min, max) } setValue={ (x) => setGain(logUnitToRange(x, min, max)) } />
+                        })() }
+                    </div>
+                }
+                {/* <div className={ clsx(
                 ) }>
                     { (() => {
                         return <BasicRange value={ gain } setValue={ (x) => setGain(x) } />
                     })() }
-                </div>
+                </div> */}
             </div>
 
 
             <div className="mb-32"></div>
         </div>
     )
+
 }
 
+/**
+ * map 20~20000 -> 0.0~1.0, with logrithm (i.e. change slow at first, then faster at end)
+ */
+function rangeToLogUnit(rawValue: number, rawValueMin: number, rawValueMax: number) {
+    return Math.log(rawValue / rawValueMin) / Math.log(rawValueMax / rawValueMin)
+}
+function logUnitToRange(unitValue: number, rawValueMin: number, rawValueMax: number) {
+    return rawValueMin * (rawValueMax / rawValueMin) ** (unitValue)
+}
 
 
 

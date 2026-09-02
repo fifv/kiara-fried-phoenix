@@ -51,7 +51,6 @@ export default function App() {
 
 
     const refSamples = useRef<number[]>([])
-    const refSamples2 = useRef<number[]>([])
 
     const refPendingRenders = useRef(0)
 
@@ -86,14 +85,8 @@ export default function App() {
 
         const handleWs = (e: MessageEvent) => {
             const wsMessage = JSON.parse(e.data) as WsRxMessage
-
             // console.log('Got a new json message:', wsMessage)
-
             if (wsMessage?.event === 'com-rx') {
-                // refOnRxs.current.forEach((onRx) => {
-                //     onRx(wsMessage.data.payload)
-                // })
-
                 if (false) {
                     /* FFT'd data */
                     /* @ts-expect-error shut up */
@@ -112,134 +105,16 @@ export default function App() {
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
-                        const sampleRate = 48000
-                        // const fftSize = 8192
-                        // const fftSize = 4096
-                        // const fftSize = 1024
-                        const fftSize = 2048
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
-
-                        const samples = refSamples.current
                         // console.log("current samples", samples.length, performance.now())
                         // console.log("newSamples", newSamples)
-                        samples.push(...newSamples)
-                        if (samples.length < fftSize) {
-                            /*  */
-                        } else {
-                            const enoughSamples = samples.slice(-fftSize)
-                            const fft = new Fft(fftSize)
-                            const fftResult = fft.createComplexArray() as number[]
-                            /* blackman_harris will cause ~ -8.91dB reduction */
-                            fft.realTransform(fftResult, blackman_harris(enoughSamples))
-                            /* divide by this after hypot compensate the amplitude *lost */
-                            const coherentGain = blackman_harris(new Array(fftSize).fill(1)).reduce((sum, value) => sum + value, 0) / fftSize
+                        refSamples.current.push(...newSamples)
 
-
-                            /**
-                             * even realTransform(), the result is still complex numbers, we need 
-                             * 1. use first half, second half are just a mirror (samplerate@48000Hz -> firsthalf@24000Hz) (fftResult is fftSize*2)
-                             * 2. use elegant chunk() to split all complex, and sqrt them (unnecessary)
-                             * 3. FFT result is a sum, depened on fftSize, so /fftSize to normalize it. and *2 to compensate the second half lost
-                             * 
-                             * the spectrum.length === fftSize / 2 
-                             */
-                            const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
-                                Math.hypot(real, imag) * 2 / (fftSize * coherentGain)
-                            )
-                            // console.log(spectrum.length)
-                            setSpectrum(spectrum)
-
-                            const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
-                            if (peak) {
-                                const safePeak = peak.value > 1e-4 ? peak : null
-                                if (safePeak) {
-                                    setPeakMap((peakMap) => {
-                                        const frequency = Math.round((sampleRate / 2) * (safePeak.i / (fftSize / 2)))
-                                        let existingPeak = peakMap.get(frequency)
-                                        if (!existingPeak) {
-                                            existingPeak = { amplitudes: [] }
-                                            peakMap.set(frequency, existingPeak)
-                                        }
-                                        existingPeak.amplitudes.push(safePeak.value)
-                                        if (existingPeak.amplitudes.length > 32) {
-                                            existingPeak.amplitudes = existingPeak.amplitudes.slice(16)
-                                        }
-                                        // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
-                                    })
-                                }
-                            }
-                            // console.log(fftResult)
-                            // return []
-                            /* comment out this line to frequent render with part of old data */
-                            refSamples.current = []
+                        /* keep 64MiB samples if >128MiB */
+                        if (refSamples.current.length > 64 * 1024 * 1024 / 4 * 2) {
+                            refSamples.current = refSamples.current.slice(-64 * 1024 * 1024 / 4)
                         }
-                        /* purge too many samples */
-                        if (refSamples.current.length > fftSize * 128) {
-                            refSamples.current = refSamples.current.slice(-fftSize * 64)
-                        }
-
-
-                        const samples2 = refSamples2.current
-                        samples2.push(...newSamples)
-                        if (samples2.length > fftSize * 32) {
-                            // create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
-                            //     const enoughSamples = samples.slice(-fftSize * 32)
-                            //     const resampledSamples = src.simple(new Float32Array(enoughSamples))
-                            //     // resampledSamples.
-
-                            //     src.destroy()
-                            // })
-
-                            const enoughSamples = samples2.slice(-fftSize * 32)
-                            // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
-                            // const resampledSamples = downsample(enoughSamples, 32)
-
-                            const offlineCtx = new OfflineAudioContext(1, fftSize * 8, 48000 / 4)
-                            const lowpassFilter = new BiquadFilterNode(offlineCtx, {
-                                type: 'lowpass',
-                                frequency: 48000 / 32 / 2,
-                            })
-                            const audioBufferSource = offlineCtx.createBufferSource()
-                            const audioBuffer = offlineCtx.createBuffer(1, fftSize * 32, 48000)
-                            audioBuffer.copyToChannel(new Float32Array(enoughSamples), 0)
-                            audioBufferSource.buffer = audioBuffer
-                            audioBufferSource.connect(lowpassFilter)
-                            lowpassFilter.connect(offlineCtx.destination)
-                            audioBufferSource.start()
-
-                            refPendingRenders.current++
-                            // console.log("pending renders:", refPendingRenders.current)
-
-
-                            offlineCtx.startRendering().then((resampledBuffer) => {
-                                // const resampledSamples = Array.from(resampledBuffer.getChannelData(0))
-                                const resampledSamples = chunk(Array.from(resampledBuffer.getChannelData(0)), 8).map(x => x[0])
-                                // console.log(resampledSamples)
-                                // console.log(resampledSamples)
-                                const fft = new Fft(fftSize)
-                                const fftResult = fft.createComplexArray() as number[]
-                                fft.realTransform(fftResult, blackman_harris((resampledSamples)))
-                                const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
-                                    Math.hypot(real, imag) * 2 / fftSize
-                                )
-                                setSpectrumLow(Array.from(spectrum))
-                            }).finally(() => {
-                                refPendingRenders.current--
-                            })
-
-
-                            // refSamples2.current = []
-                        }
-                        if (refSamples2.current.length > fftSize * 48) {
-                            refSamples2.current = refSamples2.current.slice(-fftSize * 32)
-                        }
-
-                        // console.log(peakMap)
-                        // console.log(spectrum)
-                        // setSpectrum(Array.from(spectrum))
-
-
                     } else {
                         console.error("Raw data should be N of f32, length should be mutiply of 4, but got", wsMessage.data)
                     }
@@ -269,6 +144,133 @@ export default function App() {
         }
     }, [])
 
+    useEffect(() => {
+        const si = setInterval(() => {
+            const sampleRate = 48000
+            // const fftSize = 65536
+            // const fftSize = 32768
+            // const fftSize = 8192
+            const fftSize = 4096
+            // const fftSize = 1024
+            // const fftSize = 2048
+            const t1 = performance.now()
+
+            const samples = refSamples.current
+
+            if (samples.length >= fftSize) {
+                const enoughSamples = samples.slice(-fftSize)
+                const fft = new Fft(fftSize)
+                const fftResult = fft.createComplexArray() as number[]
+                /* blackman_harris will cause ~ -8.91dB reduction */
+                fft.realTransform(fftResult, blackman_harris(enoughSamples))
+                /* divide by this after hypot compensate the amplitude *lost */
+                const coherentGain = blackman_harris(new Array(fftSize).fill(1)).reduce((sum, value) => sum + value, 0) / fftSize
+
+
+                /**
+                 * even realTransform(), the result is still complex numbers, we need 
+                 * 1. use first half, second half are just a mirror (samplerate@48000Hz -> firsthalf@24000Hz) (fftResult is fftSize*2)
+                 * 2. use elegant chunk() to split all complex, and sqrt them (unnecessary)
+                 * 3. FFT result is a sum, depened on fftSize, so /fftSize to normalize it. and *2 to compensate the second half lost
+                 * 
+                 * the spectrum.length === fftSize / 2 
+                 */
+                const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
+                    Math.hypot(real, imag) * 2 / (fftSize * coherentGain)
+                )
+                // console.log(spectrum.length)
+                setSpectrum(spectrum)
+
+                const peak = maxBy(spectrum.map((value, i) => ({ value, i })), (x) => x.value)
+                if (peak) {
+                    const safePeak = peak.value > 1e-4 ? peak : null
+                    if (safePeak) {
+                        setPeakMap((peakMap) => {
+                            const frequency = Math.round((sampleRate / 2) * (safePeak.i / (fftSize / 2)))
+                            let existingPeak = peakMap.get(frequency)
+                            if (!existingPeak) {
+                                existingPeak = { amplitudes: [] }
+                                peakMap.set(frequency, existingPeak)
+                            }
+                            existingPeak.amplitudes.push(safePeak.value)
+                            if (existingPeak.amplitudes.length > 32) {
+                                existingPeak.amplitudes = existingPeak.amplitudes.slice(16)
+                            }
+                            // console.log(Math.round((sampleRate / 2) * (peak.i / (fftSize / 2))), existingPeak)
+                        })
+                    }
+                }
+                // console.log(fftResult)
+                // return []
+                /* comment out this line to frequent render with part of old data */
+                // refSamples.current = []
+
+                // console.log((performance.now() - t1).toFixed(1), 'ms')
+
+            }
+
+
+
+            if (samples.length > fftSize * 32 && false) {
+                // create(1, 48000, 1500, { converterType: ConverterType.SRC_SINC_BEST_QUALITY }).then(src => {
+                //     const enoughSamples = samples.slice(-fftSize * 32)
+                //     const resampledSamples = src.simple(new Float32Array(enoughSamples))
+                //     // resampledSamples.
+
+                //     src.destroy()
+                // })
+
+                const enoughSamples = samples.slice(-fftSize * 32)
+                // const resampledSamples = libsamplerate.simple(new Float32Array(enoughSamples))
+                // const resampledSamples = downsample(enoughSamples, 32)
+
+                const offlineCtx = new OfflineAudioContext(1, fftSize * 8, 48000 / 4)
+                const lowpassFilter = new BiquadFilterNode(offlineCtx, {
+                    type: 'lowpass',
+                    frequency: 48000 / 32 / 2,
+                })
+                const audioBufferSource = offlineCtx.createBufferSource()
+                const audioBuffer = offlineCtx.createBuffer(1, fftSize * 32, 48000)
+                audioBuffer.copyToChannel(new Float32Array(enoughSamples), 0)
+                audioBufferSource.buffer = audioBuffer
+                audioBufferSource.connect(lowpassFilter)
+                lowpassFilter.connect(offlineCtx.destination)
+                audioBufferSource.start()
+
+                refPendingRenders.current++
+                // console.log("pending renders:", refPendingRenders.current)
+
+
+                offlineCtx.startRendering().then((resampledBuffer) => {
+                    // const resampledSamples = Array.from(resampledBuffer.getChannelData(0))
+                    const resampledSamples = chunk(Array.from(resampledBuffer.getChannelData(0)), 8).map(x => x[0])
+                    // console.log(resampledSamples)
+                    // console.log(resampledSamples)
+                    const fft = new Fft(fftSize)
+                    const fftResult = fft.createComplexArray() as number[]
+                    fft.realTransform(fftResult, blackman_harris((resampledSamples)))
+                    const spectrum = chunk(fftResult.slice(0, fftSize), 2).map(([real, imag]) =>
+                        Math.hypot(real, imag) * 2 / fftSize
+                    )
+                    setSpectrumLow(Array.from(spectrum))
+                }).finally(() => {
+                    refPendingRenders.current--
+                })
+
+            }
+
+
+            // console.log(peakMap)
+            // console.log(spectrum)
+            // setSpectrum(Array.from(spectrum))
+
+        }, 20)
+        return () => {
+            clearInterval(si)
+        }
+    }, [setPeakMap])
+
+
     return (
         <div>
             {
@@ -280,7 +282,7 @@ export default function App() {
                     'm-8',
                 ) }>
 
-                    {/* <SpectrumCanvas spectrum={ spectrum } /> */}
+                    {/* <SpectrumCanvas spectrum={ spectrum } /> */ }
                     {/* <SpectrumCanvas spectrum={ (() => {
                     // console.log(peakMap)
                     const spect = new Array(spectrum.length).fill(0)
@@ -291,7 +293,7 @@ export default function App() {
                 })() } /> */}
 
                     <SpectrumUplot spectrum={ spectrum } spectrumLow={ [] } peakMap={ peakMap } />
-                    {/* <SpectrumLowUplot spectrum={ spectrumLow } /> */}
+                    {/* <SpectrumLowUplot spectrum={ spectrumLow } /> */ }
                 </div>
             }
             <AudioSineWaveGenerator />
@@ -504,7 +506,7 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[], peakMap: FrequencyPeakMap }> = ({ spectrum, spectrumLow, peakMap }) => {
-    const refDivRef = useRef<HTMLDivElement>(null)
+    const refDiv = useRef<HTMLDivElement>(null)
     const [options, setOptions] = useImmer<uPlot.Options>(
         () => ({
             title: "Chart",
@@ -604,18 +606,26 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
 
     )
 
+    const xData = useMemo(() =>
+        spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [spectrum.length]
+    )
 
     const data: uPlot.AlignedData = [
-        [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length)))],
-        [...spectrum],
-        (() => {
-            const spect = new Array<number | null>(spectrum.length).fill(null)
-            for (const [frequency, value] of peakMap) {
-                spect[Math.round(frequency / (48000 / 2) * spectrum.length)] = mean(value.amplitudes)
-            }
-            return spect
-        })(),
-        [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
+        // spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))),
+        xData,
+        spectrum,
+        // [],
+        [],
+        // (() => {
+        //     const spect = new Array<number | null>(spectrum.length).fill(null)
+        //     for (const [frequency, value] of peakMap) {
+        //         spect[Math.round(frequency / (48000 / 2) * spectrum.length)] = mean(value.amplitudes)
+        //     }
+        //     return spect
+        // })(),
+        // [...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 32 / 2 / arr.length))), ...spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))).slice(750 / (48000 / 2 / spectrum.length))],
         // [...spectrumLow, ...spectrum.slice(750 / (48000 / 2 / spectrum.length))],
     ]
     useEffect(() => {
@@ -625,15 +635,15 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
                 draft.width = entry.contentBoxSize[0].inlineSize
             })
         })
-        if (refDivRef.current) {
-            observer.observe(refDivRef.current)
+        if (refDiv.current) {
+            observer.observe(refDiv.current)
         }
         return () => {
             observer.disconnect()
         }
     }, [setOptions])
     return (
-        <div ref={ refDivRef } className={ clsx(
+        <div ref={ refDiv } className={ clsx(
             'UplotWrapper w-full',
         ) }>
             <UPlotReact
