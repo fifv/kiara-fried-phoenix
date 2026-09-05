@@ -1,5 +1,5 @@
 import useWebSocket, { ReadyState, } from "react-use-websocket"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { clsx } from "clsx"
 import Fft from 'fft.js'
 import { blackman, blackman_harris, hann } from "fft-windowing-ts"
@@ -105,12 +105,6 @@ export default function App() {
                     /* Raw sample data */
                     // console.log(wsMessage)
                     if (wsMessage.data.payload.length % 4 === 0) {
-                        const sampleRate = 48000
-                        // const sampleRate = 96000
-                        // const fftSize = 8192
-                        // const fftSize = 4096
-                        // const fftSize = 1024
-                        const fftSize = 2048
                         const u8buffer = Uint8Array.from(wsMessage.data.payload)
                         const newSamples = new Float32Array(u8buffer.buffer, u8buffer.byteOffset)
                         // console.log("current samples", samples.length, performance.now())
@@ -298,7 +292,8 @@ export default function App() {
                     return spect
                 })() } /> */}
 
-                    <SpectrumUplot spectrum={ spectrum } spectrumLow={ [] } peakMap={ peakMap } />
+                    <SpectrumReactUplot spectrum={ spectrum } spectrumLow={ [] } peakMap={ peakMap } />
+                    <Oscilloscope refSamples={ refSamples } />
                     {/* <SpectrumLowUplot spectrum={ spectrumLow } /> */ }
                 </div>
             }
@@ -511,11 +506,11 @@ export const SpectrumCanvas: React.FC<{ spectrum: number[] }> = ({ spectrum }) =
 
 
 
-export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[], peakMap: FrequencyPeakMap }> = ({ spectrum, spectrumLow, peakMap }) => {
+export const SpectrumReactUplot: React.FC<{ spectrum: number[], spectrumLow: number[], peakMap: FrequencyPeakMap }> = ({ spectrum, spectrumLow, peakMap }) => {
     const refDiv = useRef<HTMLDivElement>(null)
     const [options, setOptions] = useImmer<uPlot.Options>(
         () => ({
-            title: "Chart",
+            title: "FFT Spectrum",
             // width: 1800,
             width: 300,
             height: 300,
@@ -663,6 +658,130 @@ export const SpectrumUplot: React.FC<{ spectrum: number[], spectrumLow: number[]
         </div>
     )
 }
+// function SpectrumUplot({ }: {
+
+// }) {
+//     const [count, setCount] = useState(0)
+//     const refUplot = useRef<HTMLDivElement>(null)
+//     return (
+//         <div></div>
+//     )
+// }
+
+function Oscilloscope({ refSamples }: {
+    refSamples: RefObject<number[]>
+}) {
+    const [samples, setSamples] = useState<number[]>([])
+    const refDiv = useRef<HTMLDivElement>(null)
+    const [options, setOptions] = useImmer<uPlot.Options>(
+        () => ({
+            title: "Oscilloscope",
+            // width: 1800,
+            width: 300,
+            height: 300,
+            series: [
+                {
+                    label: "Time",
+                },
+                {
+                    label: "Amplitude",
+                    points: { show: false },
+                    stroke: "rgb(135, 183, 134)",
+                },
+            ],
+            // plugins: [dummyPlugin()],
+            scales: {
+                x: {
+                    time: false,
+                },
+                y: {
+                    min: -.1,
+                    max: .1,
+                    range: [-0.1, 0.1],
+                },
+
+            },
+            axes: [
+                // X-Axis (Index 0)
+                {
+                    stroke: "#c7d2fe",       // Color of the axis line and text labels (e.g., light indigo)
+                    grid: {
+                        stroke: "rgba(255, 255, 255, 0.05)", // Color of vertical gridlines (semi-transparent white)
+                        width: 1,
+                    },
+                    ticks: {
+                        stroke: "rgba(255, 255, 255, 0.2)", // Color of the small tick ticks
+                        width: 1,
+                    }
+                },
+                // Y-Axis (Index 1)
+                {
+                    stroke: "#c7d2fe",       // Color of the axis line and text labels
+                    grid: {
+                        stroke: "rgba(255, 255, 255, 0.05)", // Color of horizontal gridlines
+                        width: 1,
+                    },
+                    ticks: {
+                        stroke: "rgba(255, 255, 255, 0.2)",
+                        width: 1,
+                    },
+                }
+            ],
+        })
+
+    )
+
+    const xData = useMemo(() =>
+        samples.map((x, i, arr) => ((i + 1) * (48000 / arr.length))),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [samples.length]
+    )
+
+    const data: uPlot.AlignedData = [
+        // spectrum.map((x, i, arr) => ((i + 1) * (48000 / 2 / arr.length))),
+        xData,
+        samples,
+    ]
+    useEffect(() => {
+        const observer = new ResizeObserver(([entry]) => {
+            // console.log('new width:', entry.contentBoxSize[0].inlineSize)
+            setOptions((draft) => {
+                draft.width = entry.contentBoxSize[0].inlineSize
+            })
+        })
+        if (refDiv.current) {
+            observer.observe(refDiv.current)
+        }
+        return () => {
+            observer.disconnect()
+        }
+    }, [setOptions])
+
+    useEffect(() => {
+        const si = setInterval(() => {
+            setSamples(refSamples.current.slice(-48000))
+        }, 20)
+        return () => {
+            clearInterval(si)
+        }
+    }, [refSamples])
+    return (
+        <div ref={ refDiv } className={ clsx(
+            'UplotWrapper w-full',
+        ) }>
+            <UPlotReact
+                key="hooks-key"
+                options={ options }
+                data={ data }
+                // target={ root }
+                onDelete={ (/* chart: uPlot */) => console.log("Deleted from hooks") }
+                onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
+            />
+        </div>
+    )
+}
+
+
 export const SpectrumLowUplot: React.FC<{ spectrum: number[] }> = ({ spectrum }) => {
     const [options, setOptions] = useState<uPlot.Options>(
         useMemo(
