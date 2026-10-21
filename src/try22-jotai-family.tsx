@@ -1,6 +1,7 @@
 import { isEqual, range } from "lodash-es"
 import { useEffect, useState } from "react"
-import { atomFamily, selectAtom } from 'jotai/utils'
+import { selectAtom } from 'jotai/utils'
+import { atomFamily } from 'jotai-family'
 import { atom, useAtom, useSetAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import { DevTools as JotaiDevTools } from 'jotai-devtools'
