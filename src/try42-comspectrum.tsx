@@ -681,7 +681,7 @@ function Oscilloscope({ refSamples }: {
             height: 300,
             series: [
                 {
-                    label: "Time",
+                    label: "Sample",
                 },
                 {
                     label: "Amplitude",
@@ -695,8 +695,8 @@ function Oscilloscope({ refSamples }: {
                     time: false,
                 },
                 y: {
-                    min: -.1,
-                    max: .1,
+                    min: -.2,
+                    max: .2,
                     range: [-0.1, 0.1],
                 },
 
@@ -837,6 +837,24 @@ export const SpectrumLowUplot: React.FC<{ spectrum: number[] }> = ({ spectrum })
             onCreate={ (/* chart: uPlot */) => console.log("Created from hooks") }
         />
     )
+}
+
+/**
+ * react in dev will use performance.measure(), cause 10GiB memleak
+ * here is a workaround to force clear them
+ */
+if (import.meta.env.DEV) {
+    performance.clearMeasures()
+
+    const timer = window.setInterval(() => {
+        // console.log("clear measures");
+        performance.clearMeasures()
+    }, 1000)
+
+    // Prevent duplicate timers after hot reloads.
+    import.meta.hot?.dispose(() => {
+        window.clearInterval(timer)
+    })
 }
 
 
